@@ -29,7 +29,7 @@ bottom-right corner pause the simulation, reseed it, or hide the page so you can
 ## Deploying to Vercel
 
 Vercel detects Astro and needs no configuration. Push to GitHub and import the repo, or run `vercel` from this folder.
-Before you deploy, set `site` in `astro.config.mjs` and `url` in `src/data/site.ts` to your domain.
+The live site is https://www.pavlovsdogma.com; if the domain changes, update `site` in `astro.config.mjs` and `url` in `src/data/site.ts`.
 
 ## Credits
 

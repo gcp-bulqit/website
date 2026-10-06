@@ -34,7 +34,16 @@ const canonical = new URL(Astro.url.pathname, site.url);
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta name="theme-color" content="#0c0f0d" />
-    <link rel="preload" href="/fonts/ProggyCleanNerdFontPropo.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- Persisted across client-side navigations: re-inserting it on every page swap would
+         re-preload an already-loaded font and trigger an "unused preload" console warning. -->
+    <link
+      rel="preload"
+      href="/fonts/ProggyCleanNerdFontPropo.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      transition:persist="font-preload"
+    />
     <style is:inline set:html={paletteCss()}></style>
     <script is:inline define:vars={{ paletteNames }}>
       // Runs once. The client router replaces <html> attributes on every navigation, so the saved

@@ -9,7 +9,7 @@ export const site = {
   role: 'Software Developer',
   tagline: 'I build systems, tools, and the occasional website.',
   location: 'Chicago, IL',
-  url: 'https://example.com',
+  url: 'https://www.pavlovsdogma.com',
   email: 'gcpavlov@gmail.com',
   updated: 'October 2026',
   // icon: a Nerd Font glyph. Only the glyphs listed in public/fonts/README.md are in the subset.

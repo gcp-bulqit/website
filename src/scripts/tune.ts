@@ -12,7 +12,7 @@ import { palettes } from '../data/palettes';
 
 const DEG = Math.PI / 180;
 
-// move: a movement setting; in species mode it edits the species picked in "edit species".
+// move: a movement setting; in species mode it sets that value for every species at once.
 type Slider = {
   key: keyof Params;
   label: string;
@@ -85,13 +85,17 @@ export function mountTuner(sim: Physarum, onChange: (open: boolean) => void = ()
   const syncers: (() => void)[] = [];
   const syncSliders = () => syncers.forEach((f) => f());
 
-  // Which object a slider reads/writes: movement sliders edit one species in species mode.
-  let editSpecies = 0;
-  const target = (s: Slider): Record<string, number> =>
-    (s.move && p.species > 1 ? p.speciesParams[editSpecies] : p) as unknown as Record<string, number>;
+  // Movement sliders read species 1 in species mode and write to every species (and the main
+  // params); Randomize is how species get different movement settings.
+  const read = (s: Slider) =>
+    ((s.move && p.species > 1 ? p.speciesParams[0] : p) as unknown as Record<string, number>)[s.key];
+  const write = (s: Slider, v: number) => {
+    (p as unknown as Record<string, number>)[s.key] = v;
+    if (s.move) for (const sp of p.speciesParams) (sp as unknown as Record<string, number>)[s.key] = v;
+  };
 
   for (const s of sliders) {
-    const value = target(s)[s.key] / (s.deg ? DEG : 1);
+    const value = read(s) / (s.deg ? DEG : 1);
     const row = document.createElement('label');
     row.innerHTML = `<span>${s.label}</span><input type="range" min="${s.min}" max="${s.max}" step="${s.step}"><output></output>`;
     const input = row.querySelector('input')!;
@@ -99,46 +103,33 @@ export function mountTuner(sim: Physarum, onChange: (open: boolean) => void = ()
     input.value = String(value);
     out.textContent = String(round(value));
     syncers.push(() => {
-      const v = target(s)[s.key] / (s.deg ? DEG : 1);
+      const v = read(s) / (s.deg ? DEG : 1);
       input.value = String(v);
       out.textContent = String(round(v));
     });
     input.addEventListener('input', () => {
       const v = Number(input.value);
       out.textContent = String(round(v));
-      target(s)[s.key] = s.deg ? v * DEG : v;
+      write(s, s.deg ? v * DEG : v);
       if (s.nodes) sim.rebuildNodes();
     });
     panel.append(row);
   }
 
-  // Species (after Fogleman): count, which species the movement sliders edit, and options.
+  // Species (after Fogleman): count and options.
   const species = document.createElement('label');
   species.innerHTML = `<span>species</span><input type="range" min="1" max="${MAX_SPECIES}" step="1"><output></output>`;
   const speciesInput = species.querySelector('input')!;
   const speciesOut = species.querySelector('output')!;
-  const edit = document.createElement('label');
-  edit.innerHTML = `<span>edit species</span><select></select>`;
-  const editSelect = edit.querySelector('select')!;
   const syncSpecies = () => {
     speciesInput.value = String(p.species);
     speciesOut.textContent = String(p.species);
-    editSpecies = Math.min(editSpecies, p.species - 1);
-    editSelect.innerHTML = Array.from(
-      { length: p.species },
-      (_, i) => `<option value="${i}"${i === editSpecies ? ' selected' : ''}>${p.species > 1 ? i + 1 : 'all'}</option>`,
-    ).join('');
-    editSelect.disabled = p.species < 2;
     syncSliders();
   };
   speciesInput.addEventListener('input', () => {
     p.species = Number(speciesInput.value);
     syncSpecies();
     sim.reset();
-  });
-  editSelect.addEventListener('change', () => {
-    editSpecies = Number(editSelect.value);
-    syncSliders();
   });
   // One knob for how strongly species push each other away: sets every cross-species entry of
   // the attraction table (own-species attraction stays as is). Low values keep a shared mesh;
@@ -241,7 +232,7 @@ export function mountTuner(sim: Physarum, onChange: (open: boolean) => void = ()
     }
   });
 
-  panel.prepend(palette, species, edit, repel);
+  panel.prepend(palette, species, repel);
   panel.append(pattern, seed, toggle('soft blur', 'softBlur'), toggle('weighted turn', 'weightedTurn'), actions);
   syncSpecies();
   (document.getElementById('sim-layer') ?? document.body).append(win);
