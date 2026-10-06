@@ -33,4 +33,4 @@ Before you deploy, set `site` in `astro.config.mjs` and `url` in `src/data/site.
 
 ## Credits
 
-The simulation follows Jeff Jones' Physarum model and Sage Jenson's GPU write-up.
+The simulation follows Jeff Jones' Physarum model and Sage Jenson's GPU write-up. Multi-species mode, random species settings and weighted turning follow Michael Fogleman's [physarum](https://github.com/fogleman/physarum) (MIT).

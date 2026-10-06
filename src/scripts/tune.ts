@@ -1,16 +1,34 @@
 // Live tuning panel for the simulation. Open any page with ?tune to show it.
-import { defaultParams, paperParams, type Physarum, type Params, type NodePattern } from './physarum';
+import {
+  defaultParams,
+  paperParams,
+  randomSpecies,
+  MAX_SPECIES,
+  type Physarum,
+  type Params,
+  type NodePattern,
+} from './physarum';
 import { palettes } from '../data/palettes';
 
 const DEG = Math.PI / 180;
 
-type Slider = { key: keyof Params; label: string; min: number; max: number; step: number; deg?: boolean; nodes?: boolean };
+// move: a movement setting; in species mode it edits the species picked in "edit species".
+type Slider = {
+  key: keyof Params;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  deg?: boolean;
+  nodes?: boolean;
+  move?: boolean;
+};
 
 const sliders: Slider[] = [
-  { key: 'sensorAngle', label: 'sensor angle°', min: 5, max: 120, step: 1, deg: true },
-  { key: 'sensorDist', label: 'sensor dist', min: 2, max: 48, step: 0.5 },
-  { key: 'turn', label: 'turn°', min: 2, max: 180, step: 1, deg: true },
-  { key: 'step', label: 'step', min: 0.2, max: 4, step: 0.05 },
+  { key: 'sensorAngle', label: 'sensor angle°', min: 0, max: 120, step: 1, deg: true, move: true },
+  { key: 'sensorDist', label: 'sensor dist', min: 0, max: 64, step: 0.5, move: true },
+  { key: 'turn', label: 'turn°', min: 0, max: 180, step: 1, deg: true, move: true },
+  { key: 'step', label: 'step', min: 0.2, max: 4, step: 0.05, move: true },
   { key: 'deposit', label: 'deposit', min: 0, max: 0.5, step: 0.005 },
   { key: 'decay', label: 'decay', min: 0.6, max: 0.995, step: 0.005 },
   { key: 'saturation', label: 'saturation', min: 0, max: 5, step: 0.05 },
@@ -35,6 +53,7 @@ const toSource = (p: Params) =>
     .map(([k, v]) => {
       const s = sliders.find((x) => x.key === k);
       if (s?.deg) return `  ${k}: (${round((v as number) / DEG)} * Math.PI) / 180,`;
+      if (typeof v === 'object') return `  ${k}: ${JSON.stringify(v, (_, x) => (typeof x === 'number' ? round(x) : x))},`;
       return `  ${k}: ${typeof v === 'string' ? `'${v}'` : typeof v === 'number' ? round(v) : v},`;
     })
     .join('\n') +
@@ -66,8 +85,13 @@ export function mountTuner(sim: Physarum, onChange: (open: boolean) => void = ()
   const syncers: (() => void)[] = [];
   const syncSliders = () => syncers.forEach((f) => f());
 
+  // Which object a slider reads/writes: movement sliders edit one species in species mode.
+  let editSpecies = 0;
+  const target = (s: Slider): Record<string, number> =>
+    (s.move && p.species > 1 ? p.speciesParams[editSpecies] : p) as unknown as Record<string, number>;
+
   for (const s of sliders) {
-    const value = (p[s.key] as number) / (s.deg ? DEG : 1);
+    const value = target(s)[s.key] / (s.deg ? DEG : 1);
     const row = document.createElement('label');
     row.innerHTML = `<span>${s.label}</span><input type="range" min="${s.min}" max="${s.max}" step="${s.step}"><output></output>`;
     const input = row.querySelector('input')!;
@@ -75,18 +99,76 @@ export function mountTuner(sim: Physarum, onChange: (open: boolean) => void = ()
     input.value = String(value);
     out.textContent = String(round(value));
     syncers.push(() => {
-      const v = (p[s.key] as number) / (s.deg ? DEG : 1);
+      const v = target(s)[s.key] / (s.deg ? DEG : 1);
       input.value = String(v);
       out.textContent = String(round(v));
     });
     input.addEventListener('input', () => {
       const v = Number(input.value);
       out.textContent = String(round(v));
-      (p[s.key] as number) = s.deg ? v * DEG : v;
+      target(s)[s.key] = s.deg ? v * DEG : v;
       if (s.nodes) sim.rebuildNodes();
     });
     panel.append(row);
   }
+
+  // Species (after Fogleman): count, which species the movement sliders edit, and options.
+  const species = document.createElement('label');
+  species.innerHTML = `<span>species</span><input type="range" min="1" max="${MAX_SPECIES}" step="1"><output></output>`;
+  const speciesInput = species.querySelector('input')!;
+  const speciesOut = species.querySelector('output')!;
+  const edit = document.createElement('label');
+  edit.innerHTML = `<span>edit species</span><select></select>`;
+  const editSelect = edit.querySelector('select')!;
+  const syncSpecies = () => {
+    speciesInput.value = String(p.species);
+    speciesOut.textContent = String(p.species);
+    editSpecies = Math.min(editSpecies, p.species - 1);
+    editSelect.innerHTML = Array.from(
+      { length: p.species },
+      (_, i) => `<option value="${i}"${i === editSpecies ? ' selected' : ''}>${p.species > 1 ? i + 1 : 'all'}</option>`,
+    ).join('');
+    editSelect.disabled = p.species < 2;
+    syncSliders();
+  };
+  speciesInput.addEventListener('input', () => {
+    p.species = Number(speciesInput.value);
+    syncSpecies();
+    sim.reset();
+  });
+  editSelect.addEventListener('change', () => {
+    editSpecies = Number(editSelect.value);
+    syncSliders();
+  });
+  // One knob for how strongly species push each other away: sets every cross-species entry of
+  // the attraction table (own-species attraction stays as is). Low values keep a shared mesh;
+  // high values make the species sort into separate bands.
+  const repel = document.createElement('label');
+  repel.innerHTML = `<span>species repel</span><input type="range" min="0" max="1.5" step="0.05"><output></output>`;
+  const repelInput = repel.querySelector('input')!;
+  const repelOut = repel.querySelector('output')!;
+  const crossValue = () => {
+    const vals = p.attraction.filter((_, i) => Math.floor(i / MAX_SPECIES) !== i % MAX_SPECIES);
+    return round(-vals.reduce((a, b) => a + b, 0) / vals.length);
+  };
+  syncers.push(() => {
+    repelInput.value = String(crossValue());
+    repelOut.textContent = String(crossValue());
+  });
+  repelInput.addEventListener('input', () => {
+    const v = Number(repelInput.value);
+    repelOut.textContent = String(v);
+    p.attraction = p.attraction.map((x, i) => (Math.floor(i / MAX_SPECIES) === i % MAX_SPECIES ? x : -v));
+  });
+
+  const toggle = (label: string, key: 'softBlur' | 'weightedTurn') => {
+    const row = document.createElement('label');
+    row.innerHTML = `<span>${label}</span><input type="checkbox"${p[key] ? ' checked' : ''}>`;
+    row.querySelector('input')!.addEventListener('change', (e) => {
+      p[key] = (e.target as HTMLInputElement).checked;
+    });
+    return row;
+  };
 
   const pattern = document.createElement('label');
   pattern.innerHTML = `<span>node pattern</span><select>${[
@@ -135,10 +217,16 @@ export function mountTuner(sim: Physarum, onChange: (open: boolean) => void = ()
 
   const actions = document.createElement('div');
   actions.className = 'tune-actions';
-  actions.innerHTML = `<button type="button" data-a="reseed">Reseed</button><button type="button" data-a="disturb">Disturb</button><button type="button" data-a="copy">Copy params</button>`;
+  actions.innerHTML = `<button type="button" data-a="random">Randomize</button><button type="button" data-a="reseed">Reseed</button><button type="button" data-a="disturb">Disturb</button><button type="button" data-a="copy">Copy params</button>`;
   actions.addEventListener('click', async (e) => {
     const a = (e.target as HTMLElement).dataset.a;
     if (a === 'reseed') sim.reset();
+    if (a === 'random') {
+      // Fogleman-style: 2-4 species with random movement and attraction, then reseed.
+      Object.assign(p, randomSpecies());
+      syncSpecies();
+      sim.reset();
+    }
     if (a === 'disturb') sim.disturb({ nodeSeed: (Math.random() * 2 ** 32) >>> 0 });
     if (a === 'copy') {
       const btn = e.target as HTMLButtonElement;
@@ -153,8 +241,9 @@ export function mountTuner(sim: Physarum, onChange: (open: boolean) => void = ()
     }
   });
 
-  panel.prepend(palette);
-  panel.append(pattern, seed, actions);
+  panel.prepend(palette, species, edit, repel);
+  panel.append(pattern, seed, toggle('soft blur', 'softBlur'), toggle('weighted turn', 'weightedTurn'), actions);
+  syncSpecies();
   (document.getElementById('sim-layer') ?? document.body).append(win);
 
   // Drag the window by its title bar, kept inside the viewport.

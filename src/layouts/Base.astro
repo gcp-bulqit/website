@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import { ClientRouter } from 'astro:transitions';
 import SlimeField from '../components/SlimeField.astro';
+import SiteFooter from '../components/SiteFooter.astro';
 import { site, nav } from '../data/site';
 import { palettes, defaultPalette, paletteCss } from '../data/palettes';
 
@@ -97,24 +98,8 @@ const canonical = new URL(Astro.url.pathname, site.url);
         <slot />
       </main>
 
-      {
-        !home && (
-          <footer class="site-footer panel">
-            <ul class="social">
-              {site.social.map((s) => (
-                <li>
-                  <a href={s.href}>
-                    <span class="nf" aria-hidden="true">{s.icon}</span> {s.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-            <p class="meta">
-              Updated {site.updated}
-            </p>
-          </footer>
-        )
-      }
+      {/* The home page places the footer itself, under the tagline. */}
+      {!home && <SiteFooter />}
     </div>
 
     <script>

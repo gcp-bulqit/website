@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import SiteFooter from '../components/SiteFooter.astro';
 import { site } from '../data/site';
 ---
 
@@ -10,5 +11,6 @@ import { site } from '../data/site';
     <div class="panel tagline">
       <p style="margin:0">{site.tagline}</p>
     </div>
+    <SiteFooter />
   </section>
 </Base>

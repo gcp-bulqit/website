@@ -1,0 +1,19 @@
+---
+// Contact links and "updated" date. At the bottom of every page, and under the tagline on home.
+import { site } from '../data/site';
+---
+
+<footer class="site-footer panel">
+  <ul class="social">
+    {
+      site.social.map((s) => (
+        <li>
+          <a href={s.href}>
+            <span class="nf" aria-hidden="true">{s.icon}</span> {s.label}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+  <p class="meta">Updated {site.updated}</p>
+</footer>

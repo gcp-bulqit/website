@@ -5,12 +5,19 @@
 // The pointer adds "food" that attracts agents. Pressing the pointer repels them.
 // An optional lattice of food nodes sits over the field: agents start at the nodes and grow outward,
 // and the nodes keep feeding the trail so the network spans between them.
+// Multi-species (after Michael Fogleman's github.com/fogleman/physarum): up to 4 species, each
+// with its own movement settings and its own trail channel (R, G, B, A of the trail texture).
+// Agents sense a weighted mix of the channels, attracted to their own and repelled by others.
 
 // stops[0] is the background; the rest are the slime ramp, faint to dense (up to 5).
 export type Palette = { stops: number[][] };
 const MAX_STOPS = 6;
 
 export type NodePattern = 'hex' | 'grid' | 'scatter' | 'none';
+
+// Per-species movement settings (species mode only; species 1 alone uses the main params).
+export type SpeciesParams = { sensorAngle: number; sensorDist: number; turn: number; step: number };
+export const MAX_SPECIES = 4;
 
 export type Params = {
   sensorAngle: number; // radians
@@ -38,6 +45,12 @@ export type Params = {
   // Repulsion from exclusion zones when setExclusions(..., { repel: true }) is used.
   zoneRepel: number; // subtracted from sensed trail inside a zone (fades out at the edge)
   zoneFalloff: number; // CSS pixels over which the repulsion fades outside a zone
+  // Multi-species. species: 1 is the classic single-species model.
+  species: number; // 1..4
+  speciesParams: SpeciesParams[]; // MAX_SPECIES entries
+  attraction: number[]; // MAX_SPECIES x MAX_SPECIES, row = sensing species, col = trail channel
+  softBlur: boolean; // 5x5 tent blur (two box passes, as Fogleman uses) instead of 3x3
+  weightedTurn: boolean; // turn toward a side with probability by how much it wins
 };
 
 // Node pattern 'none' runs the model as published in Jeff Jones (2010), "Characteristics of
@@ -66,7 +79,7 @@ export const defaultParams: Params = {
   decay: 0.9,
   gain: 1.1,
   saturation: 1.2,
-  nodePattern: 'hex',
+  nodePattern: 'grid',
   nodeSpacing: 170,
   nodeJitter: 0.35,
   nodeRadius: 3,
@@ -78,6 +91,41 @@ export const defaultParams: Params = {
   navWave: 0.6,
   zoneRepel: 0.15,
   zoneFalloff: 48,
+  species: 2, // test build: two species, alternating by node
+  speciesParams: Array.from({ length: MAX_SPECIES }, () => ({
+    sensorAngle: (30 * Math.PI) / 180,
+    sensorDist: 12,
+    turn: (90 * Math.PI) / 180,
+    step: 1.2,
+  })),
+  // Attracted to your own species' trail, indifferent to the others'. Any cross-species
+  // repulsion (tested down to 0.1) makes the species sort into separate territories or bands
+  // over a minute or so; at 0 each species keeps its own mesh and the meshes interweave.
+  // Randomize (Tune) uses Fogleman's -1 repulsion for the banded/territorial looks.
+  attraction: Array.from({ length: MAX_SPECIES * MAX_SPECIES }, (_, i) =>
+    Math.floor(i / MAX_SPECIES) === i % MAX_SPECIES ? 1 : 0,
+  ),
+  softBlur: false,
+  weightedTurn: false,
+};
+
+// Fogleman's random-config ranges: a quick way to discover new species behaviours.
+export const randomSpecies = (count = 2 + Math.floor(Math.random() * 3)) => {
+  const u = (a: number, b: number) => a + Math.random() * (b - a);
+  const normal = (mean: number, std: number) =>
+    mean + std * Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random());
+  return {
+    species: count,
+    speciesParams: Array.from({ length: MAX_SPECIES }, () => ({
+      sensorAngle: (u(0, 120) * Math.PI) / 180,
+      sensorDist: u(0, 64),
+      turn: (u(0, 120) * Math.PI) / 180,
+      step: u(0.2, 2),
+    })),
+    attraction: Array.from({ length: MAX_SPECIES * MAX_SPECIES }, (_, i) =>
+      Math.floor(i / MAX_SPECIES) === i % MAX_SPECIES ? normal(1, 0.25) : normal(-1, 0.25),
+    ),
+  };
 };
 
 export type Rect = { left: number; top: number; right: number; bottom: number };
@@ -114,8 +162,11 @@ uniform sampler2D uTrail;
 uniform sampler2D uNodes; // b = exclusion-zone repel mask
 uniform float uZoneRepel;
 uniform vec2 uTrailSize;
-uniform float uSensorAngle, uSensorDist, uTurn, uStep, uSeed, uSaturation, uScramble;
+uniform vec4 uSpSA, uSpSD, uSpTurn, uSpStep; // per-species sensor angle/dist, turn, step
+uniform vec4 uAttract[4]; // per species: weight of each trail channel when sensing
+uniform float uSeed, uSaturation, uScramble;
 uniform bool uPaperRules; // Jones (2010) steering: fixed turns, random left/right when both sides win
+uniform bool uWeighted; // Fogleman's weighted turning
 uniform vec4 uWave; // xy centre (0..1), z radius (trail px), w strength
 uniform vec3 uPointer;        // xy in 0..1, z = strength (+ attract, - repel)
 uniform float uPointerRadius; // trail pixels
@@ -127,12 +178,12 @@ float hash(vec2 p) {
   return fract((p3.x + p3.y) * p3.z);
 }
 
-float sense(vec2 pos, float a) {
-  vec2 p = pos + vec2(cos(a), sin(a)) * uSensorDist / uTrailSize;
-  float v = texture(uTrail, p).r;
+float sense(vec2 pos, float a, float dist, vec4 w) {
+  vec2 p = pos + vec2(cos(a), sin(a)) * dist / uTrailSize;
+  float v = dot(texture(uTrail, p), w);
   float zone = texture(uNodes, p).b * uZoneRepel;
   // Response peaks at uSaturation and falls off beyond it.
-  if (uSaturation > 0.0) v *= exp(1.0 - v / uSaturation);
+  if (uSaturation > 0.0 && v > 0.0) v *= exp(1.0 - v / uSaturation);
   v -= zone;
   vec2 d = (fract(p) - uPointer.xy) * uTrailSize;
   v += uPointer.z * exp(-dot(d, d) / (uPointerRadius * uPointerRadius));
@@ -143,28 +194,40 @@ void main() {
   vec4 a = texelFetch(uAgents, ivec2(gl_FragCoord.xy), 0);
   vec2 pos = a.xy;
   float ang = a.z;
-  float f = sense(pos, ang);
-  float l = sense(pos, ang + uSensorAngle);
-  float r = sense(pos, ang - uSensorAngle);
+  int sp = clamp(int(a.w + 0.5), 0, 3);
+  float sa = uSpSA[sp], sd = uSpSD[sp], turn = uSpTurn[sp];
+  vec4 w = uAttract[sp];
+  float f = sense(pos, ang, sd, w);
+  float l = sense(pos, ang + sa, sd, w);
+  float r = sense(pos, ang - sa, sd, w);
   float rnd = hash(gl_FragCoord.xy + uSeed);
-  if (uPaperRules) {
+  if (uWeighted) {
+    // Sort (forward, left, right) by strength; pick the strongest side, or the middle one with
+    // probability proportional to how close it is (Fogleman's weightedDirection).
+    float w0 = f, w1 = l, w2 = r, d0 = 0.0, d1 = 1.0, d2 = -1.0, t;
+    if (w0 > w1) { t = w0; w0 = w1; w1 = t; t = d0; d0 = d1; d1 = t; }
+    if (w0 > w2) { t = w0; w0 = w2; w2 = t; t = d0; d0 = d2; d2 = t; }
+    if (w1 > w2) { t = w1; w1 = w2; w2 = t; t = d1; d1 = d2; d2 = t; }
+    float lo = w1 - w0, hi = w2 - w1;
+    ang += (rnd * (lo + hi) < lo ? d1 : d2) * turn;
+  } else if (uPaperRules) {
     if (f > l && f > r) {
       // keep heading
     } else if (f < l && f < r) {
-      ang += (rnd < 0.5 ? -1.0 : 1.0) * uTurn;
+      ang += (rnd < 0.5 ? -1.0 : 1.0) * turn;
     } else if (l > r) {
-      ang += uTurn;
+      ang += turn;
     } else if (r > l) {
-      ang -= uTurn;
+      ang -= turn;
     }
   } else if (f > l && f > r) {
     // keep heading
   } else if (f < l && f < r) {
-    ang += (rnd - 0.5) * 2.0 * uTurn;
+    ang += (rnd - 0.5) * 2.0 * turn;
   } else if (l > r) {
-    ang += uTurn * (0.5 + 0.5 * rnd);
+    ang += turn * (0.5 + 0.5 * rnd);
   } else if (r > l) {
-    ang -= uTurn * (0.5 + 0.5 * rnd);
+    ang -= turn * (0.5 + 0.5 * rnd);
   }
   float rnd2 = hash(gl_FragCoord.yx * 1.7 + uSeed * 3.1);
   // One-shot heading scramble.
@@ -175,7 +238,7 @@ void main() {
     float band = exp(-pow((length(d) - uWave.z) / 14.0, 2.0));
     if (rnd2 < band * uWave.w) ang = atan(d.y, d.x) + (rnd - 0.5) * 0.9;
   }
-  pos = fract(pos + vec2(cos(ang), sin(ang)) * uStep / uTrailSize);
+  pos = fract(pos + vec2(cos(ang), sin(ang)) * uSpStep[sp] / uTrailSize);
   outAgent = vec4(pos, mod(ang, 6.28318530718), a.w);
 }`;
 
@@ -188,38 +251,57 @@ uniform float uDecay, uNodeFood;
 uniform float uZoneClear; // 0..1: fraction of trail removed inside repel zones this step
 uniform vec3 uPointer;
 uniform float uPointerRadius;
+uniform vec4 uChannels; // 1 for each species' channel in use
+uniform bool uSoftBlur;
+uniform bool uNodeSpecies; // species mode: a node feeds only its own species (node texture .a)
 out vec4 outTrail;
 void main() {
   vec2 px = 1.0 / uTrailSize;
   vec2 uv = gl_FragCoord.xy * px;
-  float s = 0.0;
-  for (int y = -1; y <= 1; y++)
-    for (int x = -1; x <= 1; x++)
-      s += texture(uTrail, uv + vec2(x, y) * px).r;
-  s = s / 9.0 * uDecay;
-  s += texture(uNodes, uv).r * uNodeFood;
+  // Each channel of the trail is one species; all are blurred and decayed together.
+  vec4 s = vec4(0.0);
+  if (uSoftBlur) {
+    // 5x5 tent: the same as two 3x3 box passes.
+    for (int y = -2; y <= 2; y++)
+      for (int x = -2; x <= 2; x++)
+        s += texture(uTrail, uv + vec2(x, y) * px) * float((3 - abs(x)) * (3 - abs(y)));
+    s /= 81.0;
+  } else {
+    for (int y = -1; y <= 1; y++)
+      for (int x = -1; x <= 1; x++)
+        s += texture(uTrail, uv + vec2(x, y) * px);
+    s /= 9.0;
+  }
+  s *= uDecay;
+  vec4 node = texture(uNodes, uv);
+  vec4 feed = uNodeSpecies ? vec4(equal(vec4(floor(node.a + 0.5)), vec4(0.0, 1.0, 2.0, 3.0))) : uChannels;
+  s += node.r * uNodeFood * feed;
   s *= 1.0 - uZoneClear * min(texture(uNodes, uv).b, 1.0);
   // A faint glow under the pointer so the attractor is visible.
   vec2 d = (uv - uPointer.xy) * uTrailSize;
-  s += max(uPointer.z, 0.0) * 0.02 * exp(-dot(d, d) / (0.25 * uPointerRadius * uPointerRadius));
-  outTrail = vec4(s, 0.0, 0.0, 1.0);
+  s += max(uPointer.z, 0.0) * 0.02 * exp(-dot(d, d) / (0.25 * uPointerRadius * uPointerRadius)) * uChannels;
+  outTrail = s;
 }`;
 
 const VS_DEPOSIT = `#version 300 es
 uniform sampler2D uAgents;
 uniform int uAgentDim;
+flat out float vSpecies;
 void main() {
   ivec2 c = ivec2(gl_VertexID % uAgentDim, gl_VertexID / uAgentDim);
-  vec2 p = texelFetch(uAgents, c, 0).xy;
-  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+  vec4 a = texelFetch(uAgents, c, 0);
+  vSpecies = a.w;
+  gl_Position = vec4(a.xy * 2.0 - 1.0, 0.0, 1.0);
   gl_PointSize = 1.0;
 }`;
 
 const FS_DEPOSIT = `#version 300 es
 precision highp float;
 uniform float uDeposit;
+flat in float vSpecies;
 out vec4 outColor;
-void main() { outColor = vec4(uDeposit, 0.0, 0.0, 0.0); }`;
+// Deposit into this agent's own species channel.
+void main() { outColor = uDeposit * vec4(equal(vec4(floor(vSpecies + 0.5)), vec4(0.0, 1.0, 2.0, 3.0))); }`;
 
 const FS_DISPLAY = `#version 300 es
 precision highp float;
@@ -229,6 +311,8 @@ uniform vec2 uRes;
 uniform vec3 uStops[6]; // background, then slime colors faint -> dense
 uniform int uStopCount;
 uniform float uGain, uMarkers;
+uniform int uSpecies;
+uniform vec3 uSpColor[4];
 out vec4 outColor;
 vec3 ramp(float t) {
   float x = clamp(t, 0.0, 1.0) * float(uStopCount - 1);
@@ -237,10 +321,26 @@ vec3 ramp(float t) {
 }
 void main() {
   vec2 uv = gl_FragCoord.xy / uRes;
-  float v = texture(uTrail, uv).r;
-  float t = 1.0 - exp(-v * uGain);
-  vec3 c = ramp(t);
-  c = mix(c, uStops[uStopCount - 1], texture(uNodes, uv).g * uMarkers);
+  vec4 trail = texture(uTrail, uv);
+  vec4 node = texture(uNodes, uv);
+  vec3 c;
+  vec3 ring = uStops[uStopCount - 1];
+  if (uSpecies > 1) {
+    // One palette color per species, blended by each species' strength over the background.
+    vec4 t = 1.0 - exp(-max(trail, 0.0) * uGain);
+    vec3 sum = vec3(0.0);
+    float total = 0.0;
+    for (int i = 0; i < 4; i++) {
+      if (i >= uSpecies) break;
+      sum += uSpColor[i] * t[i];
+      total += t[i];
+    }
+    c = mix(uStops[0], sum / max(total, 1e-4), clamp(total, 0.0, 1.0));
+    ring = uSpColor[clamp(int(node.a + 0.5), 0, 3)];
+  } else {
+    c = ramp(1.0 - exp(-trail.r * uGain));
+  }
+  c = mix(c, ring, node.g * uMarkers);
   outColor = vec4(c, 1.0);
 }`;
 
@@ -336,14 +436,26 @@ export function createPhysarum(
   let colors = palette;
 
   // Node array: positions in trail pixels, plus a texture holding food (r) and marker rings (g).
-  let nodes: [number, number][] = [];
+  type Node = [x: number, y: number, species: number];
+  let speciesSeed = (Math.random() * 2 ** 32) >>> 0;
+  const reshuffleSpecies = () => (speciesSeed = (Math.random() * 2 ** 32) >>> 0);
+  let nodes: Node[] = [];
+  // In species mode each node belongs to one species (see layoutNodes).
+  const speciesCount = () => Math.max(1, Math.min(MAX_SPECIES, Math.round(params.species)));
+  const nodeSpecies = (k: number) => nodes[k]?.[2] ?? 0;
   let nodeSeed = opts.nodeSeed ?? 1;
   let nodeTex: WebGLTexture | null = null;
 
-  const layoutNodes = (): [number, number][] => {
+  // Each node is [x, y, species]. Positions come from the page's nodeSeed; species are a random
+  // draw from speciesSeed, reshuffled on every reseed and page change. (Regular patterns line
+  // same-species nodes up into rows or columns, and the species then sort into stripes.)
+  const layoutNodes = (): Node[] => {
     const { nodePattern: pattern, nodeSpacing: sp, nodeJitter: jit } = params;
     if (pattern === 'none' || sp <= 0) return [];
-    const out: [number, number][] = [];
+    const S = speciesCount();
+    const pick = mulberry32(speciesSeed ^ nodeSeed);
+    const species = () => Math.floor(pick() * S);
+    const out: Node[] = [];
     const rand = mulberry32(nodeSeed);
     const jitter = () => (rand() - 0.5) * jit * sp;
     if (pattern === 'scatter') {
@@ -352,7 +464,8 @@ export function createPhysarum(
       for (let tries = 0; out.length < target && tries < target * 30; tries++) {
         const x = rand() * trailW;
         const y = rand() * trailH;
-        if (!excluded(x, y) && out.every(([nx, ny]) => (nx - x) ** 2 + (ny - y) ** 2 > sp * sp * 0.6)) out.push([x, y]);
+        if (!excluded(x, y) && out.every(([nx, ny]) => (nx - x) ** 2 + (ny - y) ** 2 > sp * sp * 0.6))
+          out.push([x, y, species()]);
       }
       return out;
     }
@@ -366,7 +479,8 @@ export function createPhysarum(
       for (let c = 0; c < cols; c++) {
         const x = offX + c * sp + shift + jitter();
         const y = offY + r * dy + jitter();
-        if (x >= 0 && x < trailW && y >= 0 && y < trailH && !excluded(x, y)) out.push([x, y]);
+        if (x >= 0 && x < trailW && y >= 0 && y < trailH && !excluded(x, y))
+          out.push([x, y, species()]);
       }
     }
     return out;
@@ -434,16 +548,17 @@ export function createPhysarum(
     const r = Math.max(1, params.nodeRadius);
     const ring = r * 3.5;
     const reach = Math.ceil(ring + 3);
-    for (const [nx, ny] of nodes) {
+    nodes.forEach(([nx, ny], k) => {
       for (let y = Math.floor(ny - reach); y <= ny + reach; y++) {
         for (let x = Math.floor(nx - reach); x <= nx + reach; x++) {
           const d = Math.hypot(x + 0.5 - nx, y + 0.5 - ny);
           const i = (((y % trailH) + trailH) % trailH) * trailW + (((x % trailW) + trailW) % trailW);
           data[i * 4] += Math.exp(-(d * d) / (r * r));
           data[i * 4 + 1] = Math.max(data[i * 4 + 1], Math.exp(-((d - ring) ** 2) / 0.6));
+          data[i * 4 + 3] = nodeSpecies(k); // which species this node feeds and is drawn in
         }
       }
-    }
+    });
     if (!nodeTex) nodeTex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, nodeTex);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -463,13 +578,14 @@ export function createPhysarum(
     for (let i = 0; i < agentCount; i++) {
       if (fromNodes) {
         // Start clustered on a node, facing outward: branches diverge from every node.
-        const [nx, ny] = nodes[i % nodes.length];
+        const k = i % nodes.length;
+        const [nx, ny] = nodes[k];
         const t = Math.random() * Math.PI * 2;
         const r = Math.random() * params.nodeRadius * 4;
         data[i * 4] = (nx + Math.cos(t) * r) / trailW;
         data[i * 4 + 1] = (ny + Math.sin(t) * r) / trailH;
         data[i * 4 + 2] = t;
-        data[i * 4 + 3] = 1;
+        data[i * 4 + 3] = nodeSpecies(k); // agents start on their own species' nodes
         continue;
       }
       if (params.nodePattern === 'none') {
@@ -477,7 +593,7 @@ export function createPhysarum(
         data[i * 4] = Math.random();
         data[i * 4 + 1] = Math.random();
         data[i * 4 + 2] = Math.random() * Math.PI * 2;
-        data[i * 4 + 3] = 1;
+        data[i * 4 + 3] = i % speciesCount();
         continue;
       }
       // Start in a ring facing inward: it collapses into a network in a few seconds.
@@ -488,7 +604,7 @@ export function createPhysarum(
       data[i * 4] = x;
       data[i * 4 + 1] = y;
       data[i * 4 + 2] = t + Math.PI + (Math.random() - 0.5) * 0.6;
-      data[i * 4 + 3] = 1;
+      data[i * 4 + 3] = i % speciesCount();
     }
     agents.forEach(freeTarget);
     agents = [0, 1].map((i) => makeTarget(agentDim, agentDim, gl.RGBA32F, gl.NEAREST, gl.CLAMP_TO_EDGE, i === 0 ? data : null));
@@ -567,10 +683,20 @@ export function createPhysarum(
     gl.uniform1i(u.uAgents, 0);
     gl.uniform1i(u.uTrail, 1);
     gl.uniform2f(u.uTrailSize, trailW, trailH);
-    gl.uniform1f(u.uSensorAngle, params.sensorAngle);
-    gl.uniform1f(u.uSensorDist, params.sensorDist);
-    gl.uniform1f(u.uTurn, params.turn);
-    gl.uniform1f(u.uStep, params.step);
+    // Per-species movement and attraction. One species uses the main params and its own channel.
+    const S = speciesCount();
+    const sp = (i: number) => (S === 1 ? params : params.speciesParams[i] ?? params);
+    const per = (key: keyof SpeciesParams) => [0, 1, 2, 3].map((i) => sp(i)[key]) as [number, number, number, number];
+    gl.uniform4f(u.uSpSA, ...per('sensorAngle'));
+    gl.uniform4f(u.uSpSD, ...per('sensorDist'));
+    gl.uniform4f(u.uSpTurn, ...per('turn'));
+    gl.uniform4f(u.uSpStep, ...per('step'));
+    const attract = new Float32Array(16);
+    for (let row = 0; row < MAX_SPECIES; row++)
+      for (let col = 0; col < MAX_SPECIES; col++)
+        attract[row * 4 + col] = S === 1 ? (col === 0 ? 1 : 0) : col < S ? (params.attraction[row * MAX_SPECIES + col] ?? 0) : 0;
+    gl.uniform4fv(u['uAttract[0]'], attract);
+    gl.uniform1i(u.uWeighted, params.weightedTurn ? 1 : 0);
     gl.uniform1f(u.uSaturation, params.saturation);
     gl.uniform1f(u.uScramble, pendingScramble);
     gl.activeTexture(gl.TEXTURE2);
@@ -603,6 +729,9 @@ export function createPhysarum(
     gl.uniform1i(d.uNodes, 1);
     gl.uniform1f(d.uNodeFood, params.nodeFood);
     gl.uniform1f(d.uZoneClear, 0.25 * arrive);
+    gl.uniform4f(d.uChannels, 1, S > 1 ? 1 : 0, S > 2 ? 1 : 0, S > 3 ? 1 : 0);
+    gl.uniform1i(d.uSoftBlur, params.softBlur ? 1 : 0);
+    gl.uniform1i(d.uNodeSpecies, S > 1 ? 1 : 0);
     gl.uniform3f(d.uPointer, pointer.x, pointer.y, pointer.strength);
     gl.uniform1f(d.uPointerRadius, pr);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -641,6 +770,17 @@ export function createPhysarum(
     gl.bindTexture(gl.TEXTURE_2D, nodeTex);
     gl.uniform1i(u.uNodes, 1);
     gl.uniform1f(u.uMarkers, params.nodeMarkers);
+    // Species colors: spread across the palette's slime colors (densest first) so species
+    // contrast, e.g. 2 species in a 4-color palette get the 1st and 3rd.
+    const slime = stops.slice(1).reverse();
+    const n = speciesCount();
+    const spColors = new Float32Array(12);
+    for (let i = 0; i < 4; i++) {
+      const k = slime.length >= n ? Math.floor((i * slime.length) / n) : i;
+      spColors.set(slime[k % slime.length] ?? stops[stops.length - 1], i * 3);
+    }
+    gl.uniform1i(u.uSpecies, n);
+    gl.uniform3fv(u['uSpColor[0]'], spColors);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   };
 
@@ -731,6 +871,7 @@ export function createPhysarum(
     },
     disturb({ nodeSeed: next, x, y }) {
       nodeSeed = next;
+      reshuffleSpecies();
       buildNodes();
       pendingFade = 1 - params.navFade;
       pendingScramble = params.navScramble;
@@ -744,6 +885,7 @@ export function createPhysarum(
       }
     },
     reset() {
+      reshuffleSpecies();
       quietUntil = performance.now() + RESEED_QUIET_MS;
       pointer.strength = 0;
       if (!resize()) buildNodes();

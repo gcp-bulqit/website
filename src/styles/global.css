@@ -314,6 +314,7 @@ main {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
+  align-items: baseline; /* "Updated …" sits on the same line as the links */
   gap: 1rem;
   font-size: 1rem;
 }
@@ -360,6 +361,10 @@ main {
 .hero .tagline {
   max-width: 30rem;
   font-size: 1rem;
+}
+.hero .site-footer {
+  max-width: 30rem;
+  margin-top: 1rem;
 }
 
 /* ---------- Lists ---------- */
@@ -523,6 +528,7 @@ main {
 .tune-actions {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
   margin-top: 0.35rem;
 }
 .tune-actions button {
@@ -626,6 +632,9 @@ main {
   .page-head h1 {
     font-size: 8rem;
   }
+}
+/* The biggest home name only where it still leaves room for the tagline and contact footer. */
+@media (min-width: 1200px) and (min-height: 900px) {
   .hero h1 {
     font-size: 12rem;
   }
