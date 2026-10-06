@@ -1,0 +1,137 @@
+---
+import '../styles/global.css';
+import { ClientRouter } from 'astro:transitions';
+import SlimeField from '../components/SlimeField.astro';
+import { site, nav } from '../data/site';
+
+interface Props {
+  title?: string;
+  description?: string;
+  chapter?: string;
+  home?: boolean;
+}
+const { title, description = `${site.name}: ${site.role}. ${site.tagline}`, chapter, home = false } = Astro.props;
+const pageTitle = title ? `${title} · ${site.name}` : site.name;
+const path = Astro.url.pathname.replace(/\/$/, '') || '/';
+const canonical = new URL(Astro.url.pathname, site.url);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta name="theme-color" content="#0c0f0d" />
+    <link rel="preload" href="/fonts/ProggyCleanNerdFontPropo.woff2" as="font" type="font/woff2" crossorigin />
+    <script is:inline>
+      // Runs once. The client router replaces <html> attributes on every navigation,
+      // so the saved theme is re-applied after each swap.
+      const applyTheme = () => {
+        try {
+          const t = localStorage.getItem('theme');
+          if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+        } catch {}
+      };
+      applyTheme();
+      document.addEventListener('astro:after-swap', applyTheme);
+    </script>
+    <!-- Client-side navigation keeps the simulation layer (transition:persist) alive between pages. -->
+    <ClientRouter />
+  </head>
+  <body class:list={{ home }}>
+    <a class="skip-link" href="#content">Skip to content</a>
+    <SlimeField />
+
+    <div class="page">
+      <header class="site-header">
+        <nav aria-label="Main">
+          <ol class="nav">
+            <li>
+              <a class="home-tab" href="/" aria-current={path === '/' ? 'page' : undefined} aria-label={`${site.name}, home`}>
+                {site.initials}
+              </a>
+            </li>
+            {
+              nav.map((item, i) => (
+                <li>
+                  <a href={item.href} aria-current={path === item.href ? 'page' : undefined}>
+                    <span class="num">{String(i + 1).padStart(2, '0')}</span>
+                    {item.label}
+                  </a>
+                </li>
+              ))
+            }
+          </ol>
+        </nav>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle color theme">
+          <span class="nf" aria-hidden="true">{"\uf042"}</span>
+        </button>
+      </header>
+
+      <main id="content">
+        {
+          !home && (
+            <header class="page-head">
+              {chapter && <p class="chapter">{chapter}</p>}
+              <h1 data-sim-exclude>{title}</h1>
+            </header>
+          )
+        }
+        <slot />
+      </main>
+
+      {
+        !home && (
+          <footer class="site-footer panel">
+            <ul class="social">
+              {site.social.map((s) => (
+                <li>
+                  <a href={s.href}>
+                    <span class="nf" aria-hidden="true">{s.icon}</span> {s.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <p class="meta">
+              Updated {site.updated}
+            </p>
+          </footer>
+        )
+      }
+    </div>
+
+    <script>
+      // Show the sticky header's band once the page has scrolled under it. Scroll events don't
+      // bubble, so listen in the capture phase; this also covers each new .page after navigation.
+      document.addEventListener(
+        'scroll',
+        (e) => {
+          const el = e.target;
+          if (!(el instanceof HTMLElement) || !el.classList.contains('page')) return;
+          el.querySelector('.site-header')?.classList.toggle('is-stuck', el.scrollTop > 4);
+        },
+        { capture: true, passive: true },
+      );
+
+      // Delegated: the header (and this button) is replaced on every client-side navigation.
+      document.addEventListener('click', (e) => {
+        if (!(e.target as Element).closest('#theme-toggle')) return;
+        const root = document.documentElement;
+        const current = root.dataset.theme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        const next = current === 'dark' ? 'light' : 'dark';
+        root.dataset.theme = next;
+        try {
+          localStorage.setItem('theme', next);
+        } catch {}
+      });
+    </script>
+  </body>
+</html>

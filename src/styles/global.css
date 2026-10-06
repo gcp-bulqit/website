@@ -1,0 +1,626 @@
+@font-face {
+  font-family: 'ProggyClean Nerd Font';
+  src: url('/fonts/ProggyCleanNerdFontPropo.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- Tokens ---------- */
+:root {
+  color-scheme: light;
+  --bg: #efeadc;
+  --panel: rgb(239 234 220 / 0.82);
+  --text: #18201b;
+  --muted: #56615a;
+  --line: rgb(24 32 27 / 0.22);
+  --accent: #9a6b00;
+  --focus: #0060df;
+
+  /* Simulation palette (hex only: read by the WebGL layer). */
+  --sim-bg: #efeadc;
+  --sim-low: #9fb5a2;
+  --sim-high: #1f4f3a;
+
+  /* ProggyClean is a pixel font: 1 font pixel = 1/16 em. Keep sizes at multiples of 16px
+     (1rem, 2rem, 3rem...) and letter-spacing at 0 so glyph edges land on whole pixels. */
+  --font-display: 'ProggyClean Nerd Font', ui-monospace, monospace;
+  --font-body: 'ProggyClean Nerd Font', ui-monospace, monospace;
+  --font-mono: 'ProggyClean Nerd Font', ui-monospace, monospace;
+
+  --gutter: clamp(16px, 4vw, 40px);
+  --frame: clamp(8px, 1.4vw, 16px);
+  --measure: 44rem;
+  --page-pad-top: 1.75rem;
+  --header-h: 2.5rem; /* shared height of the nav tabs and theme button */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0c0f0d;
+    --panel: rgb(12 15 13 / 0.78);
+    --text: #ece8da;
+    --muted: #9aa49c;
+    --line: rgb(236 232 218 / 0.2);
+    --accent: #f2c94c;
+    --focus: #7cc4ff;
+    --sim-bg: #0c0f0d;
+    --sim-low: #2b5e47;
+    --sim-high: #f4d35e;
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0c0f0d;
+  --panel: rgb(12 15 13 / 0.78);
+  --text: #ece8da;
+  --muted: #9aa49c;
+  --line: rgb(236 232 218 / 0.2);
+  --accent: #f2c94c;
+  --focus: #7cc4ff;
+  --sim-bg: #0c0f0d;
+  --sim-low: #2b5e47;
+  --sim-high: #f4d35e;
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 1rem/1.5 var(--font-body);
+  font-synthesis: none;
+  -webkit-font-smoothing: none;
+  overflow-x: hidden;
+}
+img,
+svg,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+a:hover {
+  color: var(--accent);
+}
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 1.05;
+  margin: 0 0 0.4em;
+}
+h2 {
+  font-size: 3rem;
+}
+h3 {
+  font-size: 2rem;
+}
+p {
+  margin: 0 0 1em;
+}
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--text);
+  color: var(--bg);
+  padding: 0.5em 1em;
+}
+.skip-link:focus {
+  left: var(--gutter);
+  top: var(--gutter);
+}
+
+/* ---------- Simulation layer ---------- */
+#slime {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+}
+.no-sim #slime {
+  background:
+    radial-gradient(circle at 30% 30%, var(--sim-low), transparent 60%),
+    radial-gradient(circle at 70% 70%, var(--sim-high), transparent 55%),
+    var(--sim-bg);
+  opacity: 0.6;
+}
+
+/* The frame: a border inset from the viewport edge with readouts in its corners. */
+.frame {
+  position: fixed;
+  inset: var(--frame);
+  z-index: 2;
+  border: 1px solid var(--line);
+  pointer-events: none;
+  font: 400 1rem/1 var(--font-mono);
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.corner {
+  position: absolute;
+  padding: 0 0.6em;
+  background: var(--bg);
+  white-space: nowrap;
+}
+.corner.tr {
+  top: -0.5em;
+  right: 1.5em;
+}
+.corner.bl {
+  bottom: -0.5em;
+  left: 1.5em;
+}
+.sim-controls {
+  position: fixed;
+  z-index: 3;
+  right: calc(var(--frame) + 1.5em);
+  bottom: calc(var(--frame) - 0.95em);
+  display: flex;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+.sim-controls button,
+.theme-toggle {
+  font: 400 1rem/1 var(--font-mono);
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--text);
+  background: var(--bg);
+  border: 0;
+  padding: 0.55em 0.8em;
+  cursor: pointer;
+}
+.sim-controls button:hover:not(:disabled),
+.theme-toggle:hover {
+  color: var(--accent);
+}
+.sim-controls button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* "View" mode hides the page so the simulation fills the frame. */
+.page {
+  position: relative;
+  z-index: 1;
+  transition: opacity 0.4s ease;
+}
+.sim-focus .page {
+  opacity: 0;
+  visibility: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .page {
+    transition: none;
+  }
+}
+
+/* ---------- Page chrome ---------- */
+/* The page scrolls inside the frame, so content never runs under the frame lines. */
+.page {
+  position: fixed;
+  inset: calc(var(--frame) + 1px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  padding: var(--page-pad-top) var(--gutter) 3rem;
+  scroll-padding-top: 6rem; /* in-page anchors land below the sticky header */
+}
+
+.site-header {
+  /* Sticks to the top of the scrolling page. The negative margins stretch it to the frame's
+     edges so its band (shown once stuck) spans the full width. */
+  position: sticky;
+  top: calc(-1 * var(--page-pad-top)); /* sticky offsets count from inside the page padding */
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  margin: -0.75rem calc(-1 * var(--gutter)) clamp(2rem, 8vh, 5rem);
+  padding: 0.75rem var(--gutter);
+  border-bottom: 1px solid transparent;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+.site-header.is-stuck {
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-bottom-color: var(--line);
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-header {
+    transition: none;
+  }
+}
+.site-header nav {
+  flex: 1;
+  min-width: 0;
+}
+.theme-toggle {
+  margin-left: auto;
+}
+.nav {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  justify-content: flex-end;
+  margin: 0;
+  padding: 0;
+}
+.nav a {
+  display: inline-flex;
+  gap: 0.45em;
+  align-items: center;
+  height: var(--header-h);
+  padding: 0 0.6em;
+  background: var(--panel);
+  text-decoration: none;
+  font-size: 1rem;
+}
+.nav .num {
+  font: 1rem var(--font-mono);
+  color: var(--muted);
+}
+.nav a[aria-current='page'] {
+  background: var(--text);
+  color: var(--bg);
+}
+.nav a[aria-current='page'] .num {
+  color: inherit;
+  opacity: 0.7;
+}
+.theme-toggle {
+  font-size: 1rem;
+  height: var(--header-h);
+  padding-block: 0;
+  border: 1px solid var(--line);
+}
+
+main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--measure);
+}
+
+.page-head {
+  margin-bottom: 2rem;
+  display: inline-block;
+}
+.page-head h1 {
+  font-size: 4rem;
+  margin: 0;
+  line-height: 1;
+  text-shadow: 0 0 24px var(--bg), 0 0 6px var(--bg);
+}
+.chapter {
+  font: 400 1rem/1 var(--font-mono);
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.75rem;
+}
+
+.panel {
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--line);
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+.panel + .panel {
+  margin-top: 1rem;
+}
+.muted {
+  color: var(--muted);
+}
+.mono {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+}
+
+.site-footer {
+  margin-top: 3rem;
+  max-width: var(--measure);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 1rem;
+}
+.site-footer .social {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin: 0;
+  padding: 0;
+}
+.site-footer .meta {
+  margin: 0;
+  font: 1rem var(--font-mono);
+  color: var(--muted);
+}
+
+/* ---------- Home ---------- */
+.home main {
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.hero h1 {
+  font-size: 6rem;
+  line-height: 0.9;
+  letter-spacing: 0;
+  margin: 0 0 1.5rem;
+  text-shadow: 0 0 40px var(--bg), 0 0 10px var(--bg);
+}
+.hero h1 em {
+  color: var(--accent);
+}
+.hero .role {
+  display: inline-block;
+  font: 400 1rem/1.5 var(--font-mono);
+  letter-spacing: 0;
+  text-transform: uppercase;
+  background: var(--panel);
+  padding: 0.5em 0.75em;
+  margin-bottom: 1rem;
+}
+.hero .tagline {
+  max-width: 30rem;
+  font-size: 1rem;
+}
+
+/* ---------- Lists ---------- */
+.entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.entry {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  gap: 0.25rem 1rem;
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--line);
+}
+.entry:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.entry:last-child {
+  padding-bottom: 0;
+}
+.entry .year {
+  font: 1rem/2 var(--font-mono);
+  color: var(--muted);
+}
+.entry h2,
+.entry h3 {
+  font-size: 2rem;
+  margin: 0 0 0.25rem;
+}
+.entry p {
+  margin: 0 0 0.5rem;
+}
+.tags {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+}
+.tags li {
+  font: 1rem/1 var(--font-mono);
+  border: 1px solid var(--line);
+  padding: 0.35em 0.5em;
+}
+.links {
+  display: flex;
+  gap: 1rem;
+  font-size: 1rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .hero h1 {
+    font-size: 5rem;
+  }
+  .entry {
+    grid-template-columns: 1fr;
+  }
+  .entry .year {
+    line-height: 1;
+  }
+  .corner.bl {
+    display: none;
+  }
+  .corner.tr {
+    display: none;
+  }
+}
+
+/* ---------- Tuning panel (?tune) ---------- */
+.tune {
+  position: fixed;
+  z-index: 4;
+  top: calc(var(--frame) + 6rem); /* below the site header */
+  right: calc(var(--frame) + 1rem);
+  width: min(300px, calc(100vw - 2 * var(--frame) - 2rem));
+  max-height: calc(100vh - 2 * var(--frame) - 9rem);
+  overflow-y: auto;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem;
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--line);
+  font: 1rem/1.2 var(--font-mono);
+  color: var(--text);
+}
+.tune label {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr 3rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+.tune output {
+  text-align: right;
+  color: var(--muted);
+}
+.tune input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.tune select,
+.tune button {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  padding: 0.3em 0.5em;
+}
+.tune input[type='checkbox'] {
+  justify-self: start;
+  accent-color: var(--accent);
+}
+.tune-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+.tune-actions button {
+  flex: 1;
+  cursor: pointer;
+}
+
+/* ---------- Experience ---------- */
+.role .year {
+  line-height: 1.5;
+  padding-top: 0.35rem;
+}
+.role .org {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+.role .context {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+.highlights {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 1rem;
+}
+.highlights li + li {
+  margin-top: 0.4rem;
+}
+.highlights li::marker {
+  color: var(--accent);
+}
+.role details {
+  margin-top: 0.4rem;
+}
+.role details .highlights {
+  margin-top: 0.4rem;
+}
+.role summary {
+  cursor: pointer;
+  font: 1rem var(--font-mono);
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.role summary:hover {
+  color: var(--accent);
+}
+.earlier {
+  font-size: 1rem;
+  margin: 1.25rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+/* Pixel-font headline steps (whole multiples of 16px only). */
+@media (min-width: 900px) {
+  .page-head h1 {
+    font-size: 6rem;
+  }
+  .hero h1 {
+    font-size: 8rem;
+  }
+}
+@media (min-width: 1200px) and (min-height: 760px) {
+  .page-head h1 {
+    font-size: 8rem;
+  }
+  .hero h1 {
+    font-size: 12rem;
+  }
+}
+
+/* No bold/italic faces in a pixel font: emphasis is carried by color. */
+em {
+  font-style: normal;
+  color: var(--accent);
+}
+strong {
+  font-weight: 400;
+  color: var(--text);
+}
+.nf {
+  font-family: var(--font-mono);
+}
+
+/* ---------- About: skills, projects ---------- */
+.skills {
+  margin: 0;
+  display: grid;
+  gap: 1rem;
+}
+.skills dt {
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+}
+.skills dd {
+  margin: 0;
+}
+.project-details {
+  margin-bottom: 0.75rem;
+}
+.note {
+  margin: 0.5rem 0 0;
+}

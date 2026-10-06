@@ -1,0 +1,17 @@
+---
+import Base from '../layouts/Base.astro';
+import { site } from '../data/site';
+---
+
+<Base home>
+  <section class="hero">
+    <h1 data-sim-exclude>{site.nameLines[0]}<br /><em>{site.nameLines[1]}</em></h1>
+    <p class="role">{site.role} · {site.location}</p>
+    <div class="panel tagline">
+      <p>{site.tagline}</p>
+      <p class="muted" style="margin:0">
+        The pattern behind this page is a live slime mold simulation. Move your pointer to feed it, or hold it down to push it away.
+      </p>
+    </div>
+  </section>
+</Base>

@@ -1,0 +1,168 @@
+---
+// The simulation layer: a fixed canvas behind the page plus the frame and HUD drawn over it.
+---
+
+<!-- Persisted across client-side navigations, so the simulation keeps running between pages. -->
+<div id="sim-layer" transition:persist="sim">
+  <canvas id="slime" aria-hidden="true"></canvas>
+  <div class="frame" aria-hidden="true">
+    <span class="corner tr" id="sim-readout">physarum · loading</span>
+    <span class="corner bl">move = attract · hold = repel</span>
+  </div>
+  <div class="sim-controls" role="group" aria-label="Background simulation">
+    <button type="button" id="sim-toggle" aria-pressed="false">Pause</button>
+    <button type="button" id="sim-reset">Reseed</button>
+    <button type="button" id="sim-focus" aria-pressed="false" title="Hide the page content to watch the simulation">View</button>
+  </div>
+</div>
+
+<script>
+  import { createPhysarum, type Palette } from '../scripts/physarum';
+
+  const canvas = document.getElementById('slime') as HTMLCanvasElement;
+  const readout = document.getElementById('sim-readout')!;
+  const toggle = document.getElementById('sim-toggle') as HTMLButtonElement;
+  const reset = document.getElementById('sim-reset') as HTMLButtonElement;
+  const focus = document.getElementById('sim-focus') as HTMLButtonElement;
+
+  const hexToRgb = (hex: string) => {
+    const h = hex.trim().replace('#', '');
+    const n = parseInt(h.length === 3 ? h.replace(/./g, '$&$&') : h, 16);
+    return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+  };
+  const readPalette = (): Palette => {
+    const s = getComputedStyle(document.documentElement);
+    return {
+      bg: hexToRgb(s.getPropertyValue('--sim-bg')),
+      low: hexToRgb(s.getPropertyValue('--sim-low')),
+      high: hexToRgb(s.getPropertyValue('--sim-high')),
+    };
+  };
+
+  // Each URL path gets its own food-node layout (stable on revisits).
+  const pathSeed = (path: string) => {
+    let h = 2166136261;
+    for (const ch of path.replace(/\/$/, '') || '/') h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+    return h >>> 0;
+  };
+
+  // Created idle: it starts once the page title has been measured (see start() below).
+  const sim = createPhysarum(canvas, readPalette(), { nodeSeed: pathSeed(location.pathname), start: false });
+
+  // The client router replaces <html> attributes on navigation; restore the classes this layer owns.
+  const rootClasses = new Set<string>();
+  const setRootClass = (name: string, on: boolean) => {
+    on ? rootClasses.add(name) : rootClasses.delete(name);
+    document.documentElement.classList.toggle(name, on);
+  };
+  document.addEventListener('astro:after-swap', () => {
+    for (const c of rootClasses) document.documentElement.classList.add(c);
+  });
+
+  if (!sim) {
+    setRootClass('no-sim', true);
+    readout.textContent = 'physarum · webgl2 unavailable';
+    toggle.disabled = reset.disabled = focus.disabled = true;
+  } else {
+    const updateReadout = () => {
+      const fps = sim.isRunning() ? ` · ${Math.round(sim.fps)} fps` : ' · paused';
+      readout.textContent = `physarum · ${sim.agentCount.toLocaleString()} agents${fps}`;
+    };
+    updateReadout();
+    setInterval(updateReadout, 1000);
+
+    const setLabel = () => {
+      toggle.textContent = sim.isRunning() ? 'Pause' : 'Play';
+      toggle.setAttribute('aria-pressed', String(!sim.isRunning()));
+    };
+    toggle.addEventListener('click', () => {
+      sim.setRunning(!sim.isRunning());
+      setLabel();
+      updateReadout();
+    });
+    reset.addEventListener('click', () => sim.reset());
+    focus.addEventListener('click', () => {
+      const on = !rootClasses.has('sim-focus');
+      setRootClass('sim-focus', on);
+      focus.setAttribute('aria-pressed', String(on));
+      focus.textContent = on ? 'Back' : 'View';
+    });
+
+    // Reduced motion: render a settled still frame instead of animating.
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Keep food nodes out from under elements marked data-sim-exclude (the big page titles).
+    // Measures the text's line boxes, not the block, and uses positions as if the page were
+    // scrolled to the top, since nodes are fixed to the viewport.
+    const measureExclusions = () => {
+      const scroll = document.querySelector('.page')?.scrollTop ?? 0;
+      const rects = [];
+      for (const el of document.querySelectorAll('[data-sim-exclude]')) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        for (const r of range.getClientRects()) {
+          if (r.width && r.height) rects.push({ left: r.left, right: r.right, top: r.top + scroll, bottom: r.bottom + scroll });
+        }
+      }
+      return rects;
+    };
+    // Only the home page's title also repels the slime; other titles just keep nodes away.
+    const updateExclusions = () =>
+      sim.setExclusions(measureExclusions(), { repel: location.pathname.replace(/\/$/, '') === '' });
+
+    // Every full page load starts with a Reseed laid out for this page's title: measure the title
+    // (after the pixel font loads, so it's at its real size), place the nodes around it, then
+    // seed and start. Nothing is drawn before that, so the nodes never jump on load. The reseed's
+    // quiet period also keeps the cursor's position on arrival from shaping the first network.
+    let started = false;
+    const start = () => {
+      if (started) return;
+      started = true;
+      updateExclusions();
+      if (!reduced) sim.setRunning(true);
+      sim.reset();
+      setLabel();
+      updateReadout();
+    };
+    if (document.fonts.status === 'loaded') start();
+    else Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 400))]).then(start);
+    document.addEventListener('astro:page-load', () => started && updateExclusions());
+    let exclusionTimer = 0;
+    window.addEventListener('resize', () => {
+      clearTimeout(exclusionTimer);
+      exclusionTimer = window.setTimeout(updateExclusions, 150);
+    });
+    let resizeTimer = 0;
+    window.addEventListener('resize', () => {
+      if (sim.isRunning()) return;
+      clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => sim.reset(), 200);
+    });
+
+    const repaint = () => sim.setPalette(readPalette());
+    new MutationObserver(repaint).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', repaint);
+
+    // On client-side navigation, push the network onto new paths. The shockwave starts at the
+    // link that was clicked, or the centre of the screen for back/forward and keyboard navigation.
+    const press = { x: 0, y: 0, at: -Infinity };
+    window.addEventListener('pointerdown', (e) => Object.assign(press, { x: e.clientX, y: e.clientY, at: performance.now() }), {
+      passive: true,
+    });
+    document.addEventListener('astro:before-preparation', (e) => {
+      const to = (e as Event & { to: URL }).to;
+      if (to.pathname === location.pathname) return;
+      const recent = performance.now() - press.at < 1000;
+      sim.disturb({ nodeSeed: pathSeed(to.pathname), ...(recent ? { x: press.x, y: press.y } : {}) });
+    });
+
+    // ?tune can appear on any page, including after a client-side navigation.
+    let tuner = false;
+    const maybeTune = () => {
+      if (tuner || !new URLSearchParams(location.search).has('tune')) return;
+      tuner = true;
+      import('../scripts/tune').then(({ mountTuner }) => mountTuner(sim));
+    };
+    maybeTune();
+    document.addEventListener('astro:page-load', maybeTune);
+  }
+</script>

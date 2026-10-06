@@ -1,0 +1,22 @@
+---
+import Base from '../layouts/Base.astro';
+import { posts } from '../data/site';
+---
+
+<Base title="Writing" chapter="03 / Writing" description="Notes and articles.">
+  <section class="panel">
+    <ul class="entries">
+      {
+        posts.map((p) => (
+          <li class="entry">
+            <time class="year" datetime={p.date}>{p.date.slice(0, 4)}</time>
+            <div>
+              <h2><a href={p.href}>{p.title}</a></h2>
+              <p class="muted">{p.summary}</p>
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</Base>

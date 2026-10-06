@@ -1,0 +1,86 @@
+---
+import Base from '../layouts/Base.astro';
+import { projects, experience, earlierExperience } from '../data/site';
+
+// Highlights shown before the "more" disclosure on each role.
+const SHOWN = 4;
+---
+
+<Base title="Work" chapter="02 / Work" description="Work history and selected projects.">
+  <section class="panel" aria-labelledby="experience">
+    <h2 id="experience">Experience</h2>
+    <ol class="entries">
+      {
+        experience.map((role) => (
+          <li class="entry role">
+            <span class="year">
+              {role.start}
+              <br />
+              {role.end}
+            </span>
+            <div>
+              <h3>{role.title}</h3>
+              <p class="org">
+                {role.company} · {role.location}
+                {role.altTitle && <span class="muted"> · {role.altTitle}</span>}
+              </p>
+              {role.context && <p class="muted context">{role.context}</p>}
+              <ul class="highlights">
+                {role.highlights.slice(0, SHOWN).map((h) => (
+                  <li>{h}</li>
+                ))}
+              </ul>
+              {role.highlights.length > SHOWN && (
+                <details>
+                  <summary>{role.highlights.length - SHOWN} more</summary>
+                  <ul class="highlights">
+                    {role.highlights.slice(SHOWN).map((h) => (
+                      <li>{h}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          </li>
+        ))
+      }
+    </ol>
+    <p class="muted earlier"><strong>Earlier:</strong> {earlierExperience}</p>
+  </section>
+
+  <section class="panel" aria-labelledby="projects">
+    <h2 id="projects">Projects</h2>
+    <ul class="entries">
+      {
+        projects.map((p) => (
+          <li class="entry">
+            <span class="year">{p.year}</span>
+            <div>
+              <h3>{p.href ? <a href={p.href}>{p.title}</a> : p.title}</h3>
+              <p>{p.summary}</p>
+              {p.details && (
+                <ul class="highlights project-details">
+                  {p.details.map((d) => (
+                    <li>{d}</li>
+                  ))}
+                </ul>
+              )}
+              <ul class="tags">
+                {p.stack.map((s) => (
+                  <li>{s}</li>
+                ))}
+              </ul>
+              {(p.href || p.repo) && (
+                <p class="links">
+                  {p.href && <a href={p.href}>Visit</a>}
+                  {p.repo && <a href={p.repo}>Source</a>}
+                </p>
+              )}
+              {p.note && <p class="muted mono note">{p.note}</p>}
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</Base>

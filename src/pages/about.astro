@@ -1,0 +1,52 @@
+---
+import Base from '../layouts/Base.astro';
+import { site, about, skills, education, languages } from '../data/site';
+---
+
+<Base title="About" chapter="01 / About" description={`${site.name}, ${site.role} in ${site.location}.`}>
+  <section class="panel">
+    {about.map((p) => <p>{p}</p>)}
+    <p style="margin:0">
+      Get in touch at <a href={`mailto:${site.email}`}>{site.email}</a> or on{' '}
+      <a href={site.social.find((s) => s.label === 'LinkedIn')?.href}>LinkedIn</a>.
+    </p>
+  </section>
+
+  <section class="panel" aria-labelledby="toolbox">
+    <h2 id="toolbox">Toolbox</h2>
+    <dl class="skills">
+      {
+        skills.map((g) => (
+          <div>
+            <dt>{g.group}</dt>
+            <dd>
+              <ul class="tags">
+                {g.items.map((t) => (
+                  <li>{t}</li>
+                ))}
+              </ul>
+            </dd>
+          </div>
+        ))
+      }
+    </dl>
+  </section>
+
+  <section class="panel" aria-labelledby="education">
+    <h2 id="education">Education</h2>
+    {
+      education.map((e) => (
+        <div class="entry">
+          <span class="year">{e.years}</span>
+          <div>
+            <h3>{e.degree}</h3>
+            <p class="muted" style="margin:0">
+              {e.school} · {e.note}
+            </p>
+          </div>
+        </div>
+      ))
+    }
+    <p class="muted earlier"><strong>Languages:</strong> {languages.join(', ')}</p>
+  </section>
+</Base>
