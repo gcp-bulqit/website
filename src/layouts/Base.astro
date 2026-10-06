@@ -3,6 +3,8 @@ import '../styles/global.css';
 import { ClientRouter } from 'astro:transitions';
 import SlimeField from '../components/SlimeField.astro';
 import SiteFooter from '../components/SiteFooter.astro';
+import SpeedInsights from '@vercel/speed-insights/astro';
+import Analytics from '@vercel/analytics/astro';
 import { site, nav } from '../data/site';
 import { palettes, defaultPalette, paletteCss } from '../data/palettes';
 
@@ -139,5 +141,9 @@ const canonical = new URL(Astro.url.pathname, site.url);
           ?.setAttribute('content', getComputedStyle(root).getPropertyValue('--bg').trim());
       });
     </script>
+    <!-- Vercel Web Analytics + Speed Insights. In <body> (not persisted) so each client-side
+         navigation renders a fresh element and records a page view for the new route. -->
+    <Analytics />
+    <SpeedInsights />
   </body>
 </html>

@@ -92,7 +92,7 @@
 
     // Reduced motion: render a settled still frame instead of animating.
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    // Keep food nodes out from under elements marked data-sim-exclude (the big page titles).
+    // Keep food nodes out from under elements marked data-sim-exclude (the home page title).
     // Measures the text's line boxes, not the block, and uses positions as if the page were
     // scrolled to the top, since nodes are fixed to the viewport.
     const measureExclusions = () => {
@@ -107,9 +107,12 @@
       }
       return rects;
     };
-    // Only the home page's title also repels the slime; other titles just keep nodes away.
-    const updateExclusions = () =>
-      sim.setExclusions(measureExclusions(), { repel: location.pathname.replace(/\/$/, '') === '' });
+    // Only the home page keeps its title clear: no nodes under it, and the slime is repelled.
+    // On other pages nodes and slime may form around and over the title.
+    const updateExclusions = () => {
+      const home = location.pathname.replace(/\/$/, '') === '';
+      sim.setExclusions(home ? measureExclusions() : [], { repel: home });
+    };
 
     // Every full page load starts with a Reseed laid out for this page's title: measure the title
     // (after the pixel font loads, so it's at its real size), place the nodes around it, then
