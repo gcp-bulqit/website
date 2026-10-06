@@ -49,7 +49,16 @@
   };
 
   // Created idle: it starts once the page title has been measured (see start() below).
-  const sim = createPhysarum(canvas, readPalette(), { nodeSeed: pathSeed(location.pathname), start: false });
+  const sim = createPhysarum(canvas, readPalette(), {
+    nodeSeed: pathSeed(location.pathname),
+    start: false,
+    onError: () => {
+      // Shaders failed to compile (reported asynchronously): fall back to the static gradient.
+      sim?.setRunning(false);
+      document.documentElement.classList.add('no-sim');
+      readout.textContent = 'physarum · webgl2 unavailable';
+    },
+  });
 
   // The client router replaces <html> attributes on navigation; restore the classes this layer owns.
   const rootClasses = new Set<string>();
@@ -109,9 +118,9 @@
     };
     // Only the home page keeps its title clear: no nodes under it, and the slime is repelled.
     // On other pages nodes and slime may form around and over the title.
-    const updateExclusions = () => {
+    const updateExclusions = (rebuild = true) => {
       const home = location.pathname.replace(/\/$/, '') === '';
-      sim.setExclusions(home ? measureExclusions() : [], { repel: home });
+      sim.setExclusions(home ? measureExclusions() : [], { repel: home, rebuild });
     };
 
     // Every full page load starts with a Reseed laid out for this page's title: measure the title
@@ -122,7 +131,7 @@
     const start = () => {
       if (started) return;
       started = true;
-      updateExclusions();
+      updateExclusions(false); // reset() below builds the nodes
       if (!reduced) sim.setRunning(true);
       sim.reset();
       setLabel();

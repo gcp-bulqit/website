@@ -27,7 +27,7 @@ export const palettes: Palette[] = [
     dark: {
       bg: '#023047',
       text: '#8ecae6',
-      muted: '#219ebc',
+      muted: '#26a6c4', // #219ebc nudged lighter: 4.8:1 on #023047 (the original is 4.4, under AA)
       accent: '#fb8500',
       slime: ['#219ebc', '#8ecae6', '#ffb703', '#fb8500'],
     },

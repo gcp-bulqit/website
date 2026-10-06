@@ -15,8 +15,9 @@ interface Props {
   description?: string;
   chapter?: string;
   home?: boolean;
+  noindex?: boolean; // keep this page out of search results
 }
-const { title, description = `${site.name}: ${site.role}. ${site.tagline}`, chapter, home = false } = Astro.props;
+const { title, description = `${site.name}: ${site.role}. ${site.tagline}`, chapter, home = false, noindex = false } = Astro.props;
 const pageTitle = title ? `${title} · ${site.name}` : site.name;
 const path = Astro.url.pathname.replace(/\/$/, '') || '/';
 const canonical = new URL(Astro.url.pathname, site.url);
@@ -30,6 +31,7 @@ const canonical = new URL(Astro.url.pathname, site.url);
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={pageTitle} />
@@ -76,7 +78,7 @@ const canonical = new URL(Astro.url.pathname, site.url);
         <nav aria-label="Main">
           <ol class="nav">
             <li>
-              <a class="home-tab" href="/" aria-current={path === '/' ? 'page' : undefined} aria-label={`${site.name}, home`}>
+              <a class="home-tab" href="/" aria-current={path === '/' ? 'page' : undefined} aria-label={`${site.initials}, ${site.name}, home`}>
                 {site.initials}
               </a>
             </li>

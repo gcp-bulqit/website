@@ -141,7 +141,8 @@ export type Physarum = {
   rebuildNodes(): void;
   // Areas (CSS pixels, viewport coordinates) where no food node may be placed, e.g. a page title.
   // With repel: true the zones also gently push agents away (see zoneRepel / zoneFalloff).
-  setExclusions(rects: Rect[], opts?: { repel?: boolean }): void;
+  // rebuild: false defers rebuilding the node texture to the next reset() (saves a duplicate build).
+  setExclusions(rects: Rect[], opts?: { repel?: boolean; rebuild?: boolean }): void;
   reset(): void;
   // Push the network onto new paths: move the food nodes to the layout for `nodeSeed`,
   // fade the trail, scramble headings, and send a shockwave out from (x, y) in CSS pixels.
@@ -361,23 +362,36 @@ export function createPhysarum(
   palette: Palette,
   // start: false creates the simulation idle, showing only the background colour, so the caller
   // can configure it (e.g. exclusions) and then reset() + setRunning(true) without a visible jump.
-  opts: { nodeSeed?: number; start?: boolean } = {},
+  // onError: shaders failed to compile/link. Reported later, because compilation is asynchronous.
+  opts: { nodeSeed?: number; start?: boolean; onError?: (e: unknown) => void } = {},
 ): Physarum | null {
   const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, preserveDrawingBuffer: false });
   if (!gl || !gl.getExtension('EXT_color_buffer_float')) return null;
   gl.getExtension('EXT_float_blend');
 
-  const compile = (vs: string, fs: string): Prog => {
+  // Shaders compile in the background: querying compile/link status straight away blocks until
+  // the driver finishes, which on Windows (ANGLE -> Direct3D) took over a second. With
+  // KHR_parallel_shader_compile the status is polled each frame instead; the simulation doesn't
+  // step or draw until every program is ready.
+  const parallel = gl.getExtension('KHR_parallel_shader_compile');
+  type Pending = { p: WebGLProgram; shaders: WebGLShader[] };
+  const start = (vs: string, fs: string): Pending => {
     const p = gl.createProgram()!;
-    for (const [type, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]] as const) {
-      const s = gl.createShader(type)!;
-      gl.shaderSource(s, src);
-      gl.compileShader(s);
-      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) ?? 'shader');
-      gl.attachShader(p, s);
-    }
+    const shaders = ([[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]] as const).map(([type, src]) => {
+      const sh = gl.createShader(type)!;
+      gl.shaderSource(sh, src);
+      gl.compileShader(sh);
+      gl.attachShader(p, sh);
+      return sh;
+    });
     gl.linkProgram(p);
-    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p) ?? 'link');
+    return { p, shaders };
+  };
+  const finish = ({ p, shaders }: Pending): Prog => {
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      const log = shaders.map((sh) => gl.getShaderInfoLog(sh)).join('\n');
+      throw new Error(`${gl.getProgramInfoLog(p) ?? 'link failed'}\n${log}`);
+    }
     const u: Prog['u'] = {};
     const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
     for (let i = 0; i < n; i++) {
@@ -387,16 +401,35 @@ export function createPhysarum(
     return { p, u };
   };
 
+  const pending = [
+    start(VS_FULL, FS_AGENTS),
+    start(VS_FULL, FS_DIFFUSE),
+    start(VS_DEPOSIT, FS_DEPOSIT),
+    start(VS_FULL, FS_DISPLAY),
+  ];
   let agentsProg: Prog, diffuseProg: Prog, depositProg: Prog, displayProg: Prog;
-  try {
-    agentsProg = compile(VS_FULL, FS_AGENTS);
-    diffuseProg = compile(VS_FULL, FS_DIFFUSE);
-    depositProg = compile(VS_DEPOSIT, FS_DEPOSIT);
-    displayProg = compile(VS_FULL, FS_DISPLAY);
-  } catch (e) {
-    console.warn('physarum: shader setup failed', e);
-    return null;
-  }
+  let ready = false;
+  let failed = false;
+  const readyCallbacks: (() => void)[] = [];
+  const whenReady = (cb: () => void) => (ready ? cb() : readyCallbacks.push(cb));
+  const pollShaders = () => {
+    if (failed || ready) return;
+    if (parallel && !pending.every(({ p }) => gl.getProgramParameter(p, parallel.COMPLETION_STATUS_KHR))) {
+      requestAnimationFrame(pollShaders);
+      return;
+    }
+    try {
+      [agentsProg, diffuseProg, depositProg, displayProg] = pending.map(finish);
+    } catch (e) {
+      failed = true;
+      console.warn('physarum: shader setup failed', e);
+      opts.onError?.(e);
+      return;
+    }
+    ready = true;
+    readyCallbacks.splice(0).forEach((cb) => cb());
+  };
+  requestAnimationFrame(pollShaders);
 
   const vao = gl.createVertexArray();
   gl.bindVertexArray(vao);
@@ -661,6 +694,7 @@ export function createPhysarum(
 
   let seed = 0;
   const step = () => {
+    if (!ready) return;
     const now = performance.now();
     const waveT = (now - wave.start) / WAVE_MS;
     const waveOn = waveT >= 0 && waveT < 1;
@@ -751,6 +785,7 @@ export function createPhysarum(
   };
 
   const draw = () => {
+    if (!ready) return;
     drewOnce = true;
     gl.useProgram(displayProg.p);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -809,6 +844,26 @@ export function createPhysarum(
   // a window in the background pauses the work and resumes it on return; a manual Pause stays.
   const active = () => running && !document.hidden && document.hasFocus();
   let drewOnce = false;
+  // While not animating (paused, background window, reduced motion) the network is "settled" by
+  // running steps ahead of time. Done in small batches across tasks so it never blocks the main
+  // thread for long (one 360-step burst was a 1.1 s long task); a newer settle, or animation
+  // starting, cancels an older one.
+  const SETTLE_BATCH = 8;
+  let settleToken = 0;
+  const settle = (steps: number) => {
+    const token = ++settleToken;
+    let left = steps;
+    const run = () => {
+      if (token !== settleToken || active()) return;
+      if (!ready) return whenReady(run);
+      const n = Math.min(SETTLE_BATCH, left);
+      for (let i = 0; i < n; i++) step();
+      left -= n;
+      draw();
+      if (left > 0) setTimeout(run, 0);
+    };
+    run();
+  };
   const setRunning = (on: boolean) => {
     running = on;
     cancelAnimationFrame(raf);
@@ -818,8 +873,7 @@ export function createPhysarum(
       raf = requestAnimationFrame(frame);
     } else if (on && !drewOnce) {
       // Started in a background window: show a settled frame rather than an empty canvas.
-      for (let i = 0; i < 120; i++) step();
-      draw();
+      settle(120);
     }
   };
   const onVisibility = () => setRunning(running);
@@ -862,6 +916,7 @@ export function createPhysarum(
       exclusions = rects;
       if (opts.repel && !repelZones) zoneArriveLeft = ZONE_ARRIVE_STEPS;
       repelZones = !!opts.repel;
+      if (opts.rebuild === false) return;
       buildNodes();
       if (!active()) draw();
     },
@@ -880,8 +935,7 @@ export function createPhysarum(
       wave.start = performance.now();
       if (!active()) {
         // Paused / reduced motion / background: settle on the new layout without animating.
-        for (let i = 0; i < 180; i++) step();
-        draw();
+        settle(180);
       }
     },
     reset() {
@@ -895,10 +949,7 @@ export function createPhysarum(
         gl.clear(gl.COLOR_BUFFER_BIT);
       }
       seedAgents();
-      if (!active()) {
-        for (let i = 0; i < 240; i++) step();
-        draw();
-      }
+      if (!active()) settle(240);
     },
     destroy() {
       cancelAnimationFrame(raf);
