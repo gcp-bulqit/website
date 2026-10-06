@@ -6,7 +6,9 @@
 // An optional lattice of food nodes sits over the field: agents start at the nodes and grow outward,
 // and the nodes keep feeding the trail so the network spans between them.
 
-export type Palette = { bg: number[]; low: number[]; high: number[] };
+// stops[0] is the background; the rest are the slime ramp, faint to dense (up to 5).
+export type Palette = { stops: number[][] };
+const MAX_STOPS = 6;
 
 export type NodePattern = 'hex' | 'grid' | 'scatter' | 'none';
 
@@ -36,6 +38,23 @@ export type Params = {
   // Repulsion from exclusion zones when setExclusions(..., { repel: true }) is used.
   zoneRepel: number; // subtracted from sensed trail inside a zone (fades out at the edge)
   zoneFalloff: number; // CSS pixels over which the repulsion fades outside a zone
+};
+
+// Node pattern 'none' runs the model as published in Jeff Jones (2010), "Characteristics of
+// pattern formation and evolution in approximations of Physarum transport networks": no food
+// nodes, agents scattered uniformly at random with random headings, fixed-angle turns, and the
+// paper's standard tuning below (SA 22.5°, RA 45°, SO 9, SS 1, decay 0.1). The Tune window
+// applies these when 'none' is picked and restores defaultParams when a node pattern is picked.
+// (The paper also stops an agent moving into an occupied cell; like most GPU versions, this
+// one lets agents overlap.)
+export const paperParams: Partial<Params> = {
+  sensorAngle: (22.5 * Math.PI) / 180,
+  sensorDist: 9,
+  turn: (45 * Math.PI) / 180,
+  step: 1,
+  deposit: 0.1,
+  decay: 0.9,
+  saturation: 0,
 };
 
 export const defaultParams: Params = {
@@ -69,7 +88,8 @@ export type Physarum = {
   params: Params;
   setPalette(p: Palette): void;
   setRunning(on: boolean): void;
-  isRunning(): boolean;
+  isRunning(): boolean; // the user's Play/Pause choice
+  isActive(): boolean; // actually animating: running, and the page is visible and focused
   rebuildNodes(): void;
   // Areas (CSS pixels, viewport coordinates) where no food node may be placed, e.g. a page title.
   // With repel: true the zones also gently push agents away (see zoneRepel / zoneFalloff).
@@ -95,6 +115,7 @@ uniform sampler2D uNodes; // b = exclusion-zone repel mask
 uniform float uZoneRepel;
 uniform vec2 uTrailSize;
 uniform float uSensorAngle, uSensorDist, uTurn, uStep, uSeed, uSaturation, uScramble;
+uniform bool uPaperRules; // Jones (2010) steering: fixed turns, random left/right when both sides win
 uniform vec4 uWave; // xy centre (0..1), z radius (trail px), w strength
 uniform vec3 uPointer;        // xy in 0..1, z = strength (+ attract, - repel)
 uniform float uPointerRadius; // trail pixels
@@ -126,7 +147,17 @@ void main() {
   float l = sense(pos, ang + uSensorAngle);
   float r = sense(pos, ang - uSensorAngle);
   float rnd = hash(gl_FragCoord.xy + uSeed);
-  if (f > l && f > r) {
+  if (uPaperRules) {
+    if (f > l && f > r) {
+      // keep heading
+    } else if (f < l && f < r) {
+      ang += (rnd < 0.5 ? -1.0 : 1.0) * uTurn;
+    } else if (l > r) {
+      ang += uTurn;
+    } else if (r > l) {
+      ang -= uTurn;
+    }
+  } else if (f > l && f > r) {
     // keep heading
   } else if (f < l && f < r) {
     ang += (rnd - 0.5) * 2.0 * uTurn;
@@ -154,6 +185,7 @@ uniform sampler2D uTrail;
 uniform sampler2D uNodes; // r = food, g = marker ring
 uniform vec2 uTrailSize;
 uniform float uDecay, uNodeFood;
+uniform float uZoneClear; // 0..1: fraction of trail removed inside repel zones this step
 uniform vec3 uPointer;
 uniform float uPointerRadius;
 out vec4 outTrail;
@@ -166,6 +198,7 @@ void main() {
       s += texture(uTrail, uv + vec2(x, y) * px).r;
   s = s / 9.0 * uDecay;
   s += texture(uNodes, uv).r * uNodeFood;
+  s *= 1.0 - uZoneClear * min(texture(uNodes, uv).b, 1.0);
   // A faint glow under the pointer so the attractor is visible.
   vec2 d = (uv - uPointer.xy) * uTrailSize;
   s += max(uPointer.z, 0.0) * 0.02 * exp(-dot(d, d) / (0.25 * uPointerRadius * uPointerRadius));
@@ -193,16 +226,21 @@ precision highp float;
 uniform sampler2D uTrail;
 uniform sampler2D uNodes;
 uniform vec2 uRes;
-uniform vec3 uBg, uLow, uHigh;
+uniform vec3 uStops[6]; // background, then slime colors faint -> dense
+uniform int uStopCount;
 uniform float uGain, uMarkers;
 out vec4 outColor;
+vec3 ramp(float t) {
+  float x = clamp(t, 0.0, 1.0) * float(uStopCount - 1);
+  int i = min(int(x), uStopCount - 2);
+  return mix(uStops[i], uStops[i + 1], smoothstep(0.0, 1.0, x - float(i)));
+}
 void main() {
   vec2 uv = gl_FragCoord.xy / uRes;
   float v = texture(uTrail, uv).r;
   float t = 1.0 - exp(-v * uGain);
-  vec3 c = mix(uBg, uLow, smoothstep(0.0, 0.55, t));
-  c = mix(c, uHigh, smoothstep(0.5, 1.0, t));
-  c = mix(c, uHigh, texture(uNodes, uv).g * uMarkers);
+  vec3 c = ramp(t);
+  c = mix(c, uStops[uStopCount - 1], texture(uNodes, uv).g * uMarkers);
   outColor = vec4(c, 1.0);
 }`;
 
@@ -284,6 +322,8 @@ export function createPhysarum(
   };
 
   const params = { ...defaultParams };
+  // A default of 'none' means the paper's model, tuning included.
+  if (params.nodePattern === 'none') Object.assign(params, paperParams);
   // Agents per trail cell. Too many saturates the trail and the network turns into a blob.
   const density = 0.3;
   let agentDim = 0;
@@ -346,9 +386,16 @@ export function createPhysarum(
     return exclusions.some((r) => cx > r.left - m && cx < r.right + m && cy > r.top - m && cy < r.bottom + m);
   };
 
-  // Blue channel of the node texture: 1 inside each exclusion zone, smoothly fading to 0 over
-  // zoneFalloff outside it. Agents read it as negative trail and steer away.
+  // Blue channel of the node texture: the repel field. Outside a zone it rises smoothly from 0
+  // to 1 over zoneFalloff; inside it keeps rising toward the zone's middle, so agents already
+  // inside always sense a way out (a flat value inside would not change their steering).
   let repelZones = false;
+  // When repulsion switches on (arriving on the home page from another page), the network may
+  // already cover the zone. For ZONE_ARRIVE_STEPS simulation steps (about 3 s at 60 fps; counted
+  // in steps so slow devices get the same effect) the trail inside it fades out and the push is
+  // stronger, then it eases back to params.zoneRepel.
+  const ZONE_ARRIVE_STEPS = 180;
+  let zoneArriveLeft = 0;
   const writeRepelMask = (data: Float32Array) => {
     const sx = canvas.clientWidth / trailW;
     const sy = canvas.clientHeight / trailH;
@@ -366,8 +413,14 @@ export function createPhysarum(
         for (let x = xa; x <= xb; x++) {
           const dx = Math.max(x0 - x, 0, x - x1);
           const dy = Math.max(y0 - y, 0, y - y1);
-          const t = Math.min(1, Math.hypot(dx, dy) / fall);
-          const v = 1 - t * t * (3 - 2 * t); // smoothstep falloff
+          let v: number;
+          if (dx === 0 && dy === 0) {
+            const depth = Math.min(x - x0, x1 - x, y - y0, y1 - y); // distance to the nearest edge
+            v = 1 + depth / fall;
+          } else {
+            const t = Math.min(1, Math.hypot(dx, dy) / fall);
+            v = 1 - t * t * (3 - 2 * t); // smoothstep falloff
+          }
           const i = (y * trailW + x) * 4 + 2;
           data[i] = Math.max(data[i], v);
         }
@@ -416,6 +469,14 @@ export function createPhysarum(
         data[i * 4] = (nx + Math.cos(t) * r) / trailW;
         data[i * 4 + 1] = (ny + Math.sin(t) * r) / trailH;
         data[i * 4 + 2] = t;
+        data[i * 4 + 3] = 1;
+        continue;
+      }
+      if (params.nodePattern === 'none') {
+        // Paper initialisation: uniformly random positions and headings.
+        data[i * 4] = Math.random();
+        data[i * 4 + 1] = Math.random();
+        data[i * 4 + 2] = Math.random() * Math.PI * 2;
         data[i * 4 + 3] = 1;
         continue;
       }
@@ -477,6 +538,7 @@ export function createPhysarum(
 
   // Navigation disturbance state.
   const WAVE_MS = 1400;
+  const zoneArrival = () => (zoneArriveLeft > 0 ? zoneArriveLeft-- / ZONE_ARRIVE_STEPS : 0); // 1 -> 0
   const wave = { x: 0.5, y: 0.5, start: -Infinity };
   let pendingFade = 1;
   let pendingScramble = 0;
@@ -514,7 +576,9 @@ export function createPhysarum(
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, nodeTex);
     gl.uniform1i(u.uNodes, 2);
-    gl.uniform1f(u.uZoneRepel, repelZones ? params.zoneRepel : 0);
+    const arrive = repelZones ? zoneArrival() : 0;
+    gl.uniform1f(u.uZoneRepel, repelZones ? params.zoneRepel + 1.5 * arrive : 0);
+    gl.uniform1i(u.uPaperRules, params.nodePattern === 'none' ? 1 : 0);
     gl.uniform4f(u.uWave, wave.x, wave.y, waveRadius, waveOn ? params.navWave * (1 - waveT) : 0);
     pendingScramble = 0;
     gl.uniform1f(u.uSeed, (seed = (seed + 1.618) % 997));
@@ -538,6 +602,7 @@ export function createPhysarum(
     gl.bindTexture(gl.TEXTURE_2D, nodeTex);
     gl.uniform1i(d.uNodes, 1);
     gl.uniform1f(d.uNodeFood, params.nodeFood);
+    gl.uniform1f(d.uZoneClear, 0.25 * arrive);
     gl.uniform3f(d.uPointer, pointer.x, pointer.y, pointer.strength);
     gl.uniform1f(d.uPointerRadius, pr);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -557,6 +622,7 @@ export function createPhysarum(
   };
 
   const draw = () => {
+    drewOnce = true;
     gl.useProgram(displayProg.p);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, canvas.width, canvas.height);
@@ -565,9 +631,11 @@ export function createPhysarum(
     const u = displayProg.u;
     gl.uniform1i(u.uTrail, 0);
     gl.uniform2f(u.uRes, canvas.width, canvas.height);
-    gl.uniform3fv(u.uBg, colors.bg);
-    gl.uniform3fv(u.uLow, colors.low);
-    gl.uniform3fv(u.uHigh, colors.high);
+    const stops = colors.stops.slice(0, MAX_STOPS);
+    const flat = new Float32Array(MAX_STOPS * 3);
+    stops.forEach((s, i) => flat.set(s, i * 3));
+    gl.uniform3fv(u['uStops[0]'], flat);
+    gl.uniform1i(u.uStopCount, Math.max(2, stops.length));
     gl.uniform1f(u.uGain, params.gain);
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, nodeTex);
@@ -597,13 +665,27 @@ export function createPhysarum(
     step();
     draw();
   };
+  // Animate only while running (Play) and the page is both visible and focused. A hidden tab or
+  // a window in the background pauses the work and resumes it on return; a manual Pause stays.
+  const active = () => running && !document.hidden && document.hasFocus();
+  let drewOnce = false;
   const setRunning = (on: boolean) => {
     running = on;
     cancelAnimationFrame(raf);
-    if (on && !document.hidden) raf = requestAnimationFrame(frame);
+    if (active()) {
+      frames = 0;
+      fpsStart = performance.now();
+      raf = requestAnimationFrame(frame);
+    } else if (on && !drewOnce) {
+      // Started in a background window: show a settled frame rather than an empty canvas.
+      for (let i = 0; i < 120; i++) step();
+      draw();
+    }
   };
   const onVisibility = () => setRunning(running);
   document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('focus', onVisibility);
+  window.addEventListener('blur', onVisibility);
   const onLost = (e: Event) => {
     e.preventDefault();
     cancelAnimationFrame(raf);
@@ -616,7 +698,8 @@ export function createPhysarum(
     setRunning(false);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(colors.bg[0], colors.bg[1], colors.bg[2], 1);
+    const [r, g, b] = colors.stops[0];
+    gl.clearColor(r, g, b, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
@@ -625,24 +708,26 @@ export function createPhysarum(
       return agentCount;
     },
     get fps() {
-      return running ? fps : 0;
+      return active() ? fps : 0;
     },
     params,
     setPalette(p) {
       colors = p;
-      if (!running) draw();
+      if (!active()) draw();
     },
     setRunning,
     isRunning: () => running,
+    isActive: active,
     setExclusions(rects, opts = {}) {
       exclusions = rects;
+      if (opts.repel && !repelZones) zoneArriveLeft = ZONE_ARRIVE_STEPS;
       repelZones = !!opts.repel;
       buildNodes();
-      if (!running) draw();
+      if (!active()) draw();
     },
     rebuildNodes() {
       buildNodes();
-      if (!running) draw();
+      if (!active()) draw();
     },
     disturb({ nodeSeed: next, x, y }) {
       nodeSeed = next;
@@ -652,8 +737,8 @@ export function createPhysarum(
       wave.x = x === undefined ? 0.5 : x / window.innerWidth;
       wave.y = y === undefined ? 0.5 : 1 - y / window.innerHeight;
       wave.start = performance.now();
-      if (!running) {
-        // Paused / reduced motion: settle on the new layout without animating.
+      if (!active()) {
+        // Paused / reduced motion / background: settle on the new layout without animating.
         for (let i = 0; i < 180; i++) step();
         draw();
       }
@@ -668,7 +753,7 @@ export function createPhysarum(
         gl.clear(gl.COLOR_BUFFER_BIT);
       }
       seedAgents();
-      if (!running) {
+      if (!active()) {
         for (let i = 0; i < 240; i++) step();
         draw();
       }
@@ -680,6 +765,8 @@ export function createPhysarum(
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', onVisibility);
+      window.removeEventListener('blur', onVisibility);
       canvas.removeEventListener('webglcontextlost', onLost);
     },
   };

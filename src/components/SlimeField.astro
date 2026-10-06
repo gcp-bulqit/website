@@ -13,6 +13,7 @@
     <button type="button" id="sim-toggle" aria-pressed="false">Pause</button>
     <button type="button" id="sim-reset">Reseed</button>
     <button type="button" id="sim-focus" aria-pressed="false" title="Hide the page content to watch the simulation">View</button>
+    <button type="button" id="sim-tune" aria-expanded="false" aria-controls="tune-panel" title="Adjust the simulation's parameters">Tune</button>
   </div>
 </div>
 
@@ -24,6 +25,7 @@
   const toggle = document.getElementById('sim-toggle') as HTMLButtonElement;
   const reset = document.getElementById('sim-reset') as HTMLButtonElement;
   const focus = document.getElementById('sim-focus') as HTMLButtonElement;
+  const tuneBtn = document.getElementById('sim-tune') as HTMLButtonElement;
 
   const hexToRgb = (hex: string) => {
     const h = hex.trim().replace('#', '');
@@ -33,9 +35,9 @@
   const readPalette = (): Palette => {
     const s = getComputedStyle(document.documentElement);
     return {
-      bg: hexToRgb(s.getPropertyValue('--sim-bg')),
-      low: hexToRgb(s.getPropertyValue('--sim-low')),
-      high: hexToRgb(s.getPropertyValue('--sim-high')),
+      stops: [s.getPropertyValue('--sim-bg'), ...s.getPropertyValue('--sim-stops').trim().split(/\s+/)]
+        .filter(Boolean)
+        .map(hexToRgb),
     };
   };
 
@@ -62,10 +64,10 @@
   if (!sim) {
     setRootClass('no-sim', true);
     readout.textContent = 'physarum · webgl2 unavailable';
-    toggle.disabled = reset.disabled = focus.disabled = true;
+    toggle.disabled = reset.disabled = focus.disabled = tuneBtn.disabled = true;
   } else {
     const updateReadout = () => {
-      const fps = sim.isRunning() ? ` · ${Math.round(sim.fps)} fps` : ' · paused';
+      const fps = !sim.isRunning() ? ' · paused' : sim.isActive() ? ` · ${Math.round(sim.fps)} fps` : ' · idle';
       readout.textContent = `physarum · ${sim.agentCount.toLocaleString()} agents${fps}`;
     };
     updateReadout();
@@ -139,7 +141,7 @@
     });
 
     const repaint = () => sim.setPalette(readPalette());
-    new MutationObserver(repaint).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    new MutationObserver(repaint).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-palette'] });
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', repaint);
 
     // On client-side navigation, push the network onto new paths. The shockwave starts at the
@@ -155,12 +157,18 @@
       sim.disturb({ nodeSeed: pathSeed(to.pathname), ...(recent ? { x: press.x, y: press.y } : {}) });
     });
 
-    // ?tune can appear on any page, including after a client-side navigation.
-    let tuner = false;
+    // Tune window: loaded on first use. ?tune in the URL (on any page) opens it too.
+    let tuner: Promise<import('../scripts/tune').Tuner> | null = null;
+    const getTuner = () =>
+      (tuner ??= import('../scripts/tune').then(({ mountTuner }) =>
+        mountTuner(sim, (open) => {
+          tuneBtn.setAttribute('aria-expanded', String(open));
+          if (!open) tuneBtn.focus();
+        }),
+      ));
+    tuneBtn.addEventListener('click', () => getTuner().then((t) => t.toggle()));
     const maybeTune = () => {
-      if (tuner || !new URLSearchParams(location.search).has('tune')) return;
-      tuner = true;
-      import('../scripts/tune').then(({ mountTuner }) => mountTuner(sim));
+      if (new URLSearchParams(location.search).has('tune')) getTuner().then((t) => t.open());
     };
     maybeTune();
     document.addEventListener('astro:page-load', maybeTune);

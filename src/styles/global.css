@@ -7,21 +7,9 @@
 }
 
 /* ---------- Tokens ---------- */
+/* Colors (--bg, --text, --accent, --sim-*, ...) come from src/data/palettes.ts, which Base.astro
+   turns into :root[data-palette=...] rules. Only non-color tokens live here. */
 :root {
-  color-scheme: light;
-  --bg: #efeadc;
-  --panel: rgb(239 234 220 / 0.82);
-  --text: #18201b;
-  --muted: #56615a;
-  --line: rgb(24 32 27 / 0.22);
-  --accent: #9a6b00;
-  --focus: #0060df;
-
-  /* Simulation palette (hex only: read by the WebGL layer). */
-  --sim-bg: #efeadc;
-  --sim-low: #9fb5a2;
-  --sim-high: #1f4f3a;
-
   /* ProggyClean is a pixel font: 1 font pixel = 1/16 em. Keep sizes at multiples of 16px
      (1rem, 2rem, 3rem...) and letter-spacing at 0 so glyph edges land on whole pixels. */
   --font-display: 'ProggyClean Nerd Font', ui-monospace, monospace;
@@ -33,35 +21,6 @@
   --measure: 44rem;
   --page-pad-top: 1.75rem;
   --header-h: 2.5rem; /* shared height of the nav tabs and theme button */
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-    --bg: #0c0f0d;
-    --panel: rgb(12 15 13 / 0.78);
-    --text: #ece8da;
-    --muted: #9aa49c;
-    --line: rgb(236 232 218 / 0.2);
-    --accent: #f2c94c;
-    --focus: #7cc4ff;
-    --sim-bg: #0c0f0d;
-    --sim-low: #2b5e47;
-    --sim-high: #f4d35e;
-  }
-}
-:root[data-theme='dark'] {
-  color-scheme: dark;
-  --bg: #0c0f0d;
-  --panel: rgb(12 15 13 / 0.78);
-  --text: #ece8da;
-  --muted: #9aa49c;
-  --line: rgb(236 232 218 / 0.2);
-  --accent: #f2c94c;
-  --focus: #7cc4ff;
-  --sim-bg: #0c0f0d;
-  --sim-low: #2b5e47;
-  --sim-high: #f4d35e;
 }
 
 /* ---------- Base ---------- */
@@ -319,6 +278,7 @@ main {
 .page-head h1 {
   font-size: 4rem;
   margin: 0;
+  color: var(--accent); /* same as "Pavlov" on the home page */
   line-height: 1;
   text-shadow: 0 0 24px var(--bg), 0 0 6px var(--bg);
 }
@@ -472,24 +432,60 @@ main {
   }
 }
 
-/* ---------- Tuning panel (?tune) ---------- */
+/* ---------- Tuning window (Tune button / ?tune) ---------- */
 .tune {
   position: fixed;
   z-index: 4;
-  top: calc(var(--frame) + 6rem); /* below the site header */
-  right: calc(var(--frame) + 1rem);
-  width: min(300px, calc(100vw - 2 * var(--frame) - 2rem));
-  max-height: calc(100vh - 2 * var(--frame) - 9rem);
-  overflow-y: auto;
-  display: grid;
-  gap: 0.35rem;
-  padding: 0.85rem;
+  right: calc(var(--frame) + 1.5em);
+  bottom: calc(var(--frame) + 2.5rem); /* just above the simulation controls */
+  width: min(320px, calc(100vw - 2 * var(--frame) - 2rem));
+  max-height: calc(100vh - 2 * var(--frame) - 5rem);
+  display: flex;
+  flex-direction: column;
   background: var(--panel);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   border: 1px solid var(--line);
+  box-shadow: 4px 4px 0 var(--line);
   font: 1rem/1.2 var(--font-mono);
   color: var(--text);
+}
+.tune[hidden] {
+  display: none;
+}
+.tune-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.35rem 0.35rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+}
+.tune-head h2 {
+  font: 400 1rem/1 var(--font-mono);
+  text-transform: uppercase;
+  margin: 0;
+}
+.tune-close {
+  font: 400 1rem/1 var(--font-mono);
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  width: 2rem;
+  height: 2rem;
+  cursor: pointer;
+}
+.tune-close:hover {
+  color: var(--accent);
+  border-color: var(--line);
+}
+.tune-body {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem;
+  overflow-y: auto;
 }
 .tune label {
   display: grid;
@@ -506,7 +502,7 @@ main {
   accent-color: var(--accent);
 }
 .tune select,
-.tune button {
+.tune-actions button {
   font: inherit;
   color: var(--text);
   background: var(--bg);
@@ -525,6 +521,10 @@ main {
 .tune-actions button {
   flex: 1;
   cursor: pointer;
+}
+.sim-controls button[aria-expanded='true'] {
+  background: var(--text);
+  color: var(--bg);
 }
 
 /* ---------- Experience ---------- */

@@ -3,6 +3,9 @@ import '../styles/global.css';
 import { ClientRouter } from 'astro:transitions';
 import SlimeField from '../components/SlimeField.astro';
 import { site, nav } from '../data/site';
+import { palettes, defaultPalette, paletteCss } from '../data/palettes';
+
+const paletteNames = palettes.map((p) => p.name);
 
 interface Props {
   title?: string;
@@ -17,7 +20,7 @@ const canonical = new URL(Astro.url.pathname, site.url);
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-palette={defaultPalette}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -31,17 +34,23 @@ const canonical = new URL(Astro.url.pathname, site.url);
     <meta property="og:url" content={canonical} />
     <meta name="theme-color" content="#0c0f0d" />
     <link rel="preload" href="/fonts/ProggyCleanNerdFontPropo.woff2" as="font" type="font/woff2" crossorigin />
-    <script is:inline>
-      // Runs once. The client router replaces <html> attributes on every navigation,
-      // so the saved theme is re-applied after each swap.
-      const applyTheme = () => {
+    <style is:inline set:html={paletteCss()}></style>
+    <script is:inline define:vars={{ paletteNames }}>
+      // Runs once. The client router replaces <html> attributes on every navigation, so the saved
+      // theme and palette are re-applied after each swap.
+      const applyPrefs = () => {
+        const root = document.documentElement;
         try {
           const t = localStorage.getItem('theme');
-          if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+          if (t === 'light' || t === 'dark') root.dataset.theme = t;
+          const p = localStorage.getItem('palette');
+          if (p && paletteNames.includes(p)) root.dataset.palette = p;
         } catch {}
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', getComputedStyle(root).getPropertyValue('--bg').trim());
       };
-      applyTheme();
-      document.addEventListener('astro:after-swap', applyTheme);
+      applyPrefs();
+      document.addEventListener('astro:after-swap', applyPrefs);
     </script>
     <!-- Client-side navigation keeps the simulation layer (transition:persist) alive between pages. -->
     <ClientRouter />
@@ -131,6 +140,9 @@ const canonical = new URL(Astro.url.pathname, site.url);
         try {
           localStorage.setItem('theme', next);
         } catch {}
+        document
+          .querySelector('meta[name="theme-color"]')
+          ?.setAttribute('content', getComputedStyle(root).getPropertyValue('--bg').trim());
       });
     </script>
   </body>

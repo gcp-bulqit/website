@@ -19,9 +19,10 @@ bottom-right corner pause the simulation, reseed it, or hide the page so you can
 
 - `src/data/site.ts`: **all personal content** (name, links, projects, posts). Start here.
 - `src/scripts/physarum.ts`: the simulation (agent, diffuse, deposit and display shader passes). Tune `defaultParams` and `density`.
-- **Tuning:** open any page with `?tune` (e.g. `localhost:4321/?tune`) for live sliders. "Copy params" copies a `defaultParams` block you can paste back into `physarum.ts`.
+- **Tuning:** the **Tune** button (bottom right) opens a window of live sliders, the palette picker and node patterns (`none` runs the Jones 2010 model). `?tune` in the URL opens it on load. "Copy params" copies a `defaultParams` block you can paste back into `physarum.ts`.
 - `src/components/SlimeField.astro`: canvas, frame/HUD and controls. Reads colors from CSS.
-- `src/styles/global.css`: design tokens. `--sim-bg`, `--sim-low` and `--sim-high` set the simulation colors per theme.
+- `src/data/palettes.ts`: color palettes (light and dark modes, including the slime color ramp). Add one there and it appears in the Tune window; `defaultPalette` picks what visitors see.
+- `src/styles/global.css`: layout, type and non-color tokens.
 - `src/layouts/Base.astro`: shared layout (header, nav, footer, theme toggle).
 - `src/pages/`: Home, About, Work, Writing, Lab, 404.
 

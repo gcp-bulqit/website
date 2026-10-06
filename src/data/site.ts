@@ -54,7 +54,7 @@ export const languages = ['English (native)', 'Russian (native)'];
 export const nav = [
   { href: '/about', label: 'About' },
   { href: '/work', label: 'Work' },
-  { href: '/writing', label: 'Writing' },
+  // Writing (/writing, chapter 04) is hidden from the tabs for now but still reachable by URL.
   { href: '/lab', label: 'Lab' },
 ];
 

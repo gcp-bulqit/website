@@ -1,5 +1,6 @@
 // Live tuning panel for the simulation. Open any page with ?tune to show it.
-import type { Physarum, Params, NodePattern } from './physarum';
+import { defaultParams, paperParams, type Physarum, type Params, type NodePattern } from './physarum';
+import { palettes } from '../data/palettes';
 
 const DEG = Math.PI / 180;
 
@@ -39,12 +40,31 @@ const toSource = (p: Params) =>
     .join('\n') +
   `\n};`;
 
-export function mountTuner(sim: Physarum) {
+export type Tuner = { open(): void; close(): void; toggle(): void; isOpen(): boolean };
+
+// Builds the tuning window (hidden until opened) inside the persisted simulation layer, so it
+// survives client-side navigation. onChange reports open/closed so the Tune button can reflect it.
+export function mountTuner(sim: Physarum, onChange: (open: boolean) => void = () => {}): Tuner {
   const p = sim.params;
+
+  const win = document.createElement('section');
+  win.className = 'tune';
+  win.id = 'tune-panel';
+  win.hidden = true;
+  win.setAttribute('role', 'dialog');
+  win.setAttribute('aria-labelledby', 'tune-title');
+  win.innerHTML = `<header class="tune-head"><h2 id="tune-title">Tune</h2><button type="button" class="tune-close" aria-label="Close tuning window">×</button></header>`;
   const panel = document.createElement('form');
-  panel.className = 'tune';
-  panel.setAttribute('aria-label', 'Simulation parameters');
+  panel.className = 'tune-body';
   panel.addEventListener('submit', (e) => e.preventDefault());
+  win.append(panel);
+
+  // Keep the simulation's pointer attract/repel from firing while using the window.
+  for (const type of ['pointerdown', 'pointermove'] as const) win.addEventListener(type, (e) => e.stopPropagation());
+
+  // Re-sync slider positions after params change underneath them (e.g. the paper preset).
+  const syncers: (() => void)[] = [];
+  const syncSliders = () => syncers.forEach((f) => f());
 
   for (const s of sliders) {
     const value = (p[s.key] as number) / (s.deg ? DEG : 1);
@@ -54,6 +74,11 @@ export function mountTuner(sim: Physarum) {
     const out = row.querySelector('output')!;
     input.value = String(value);
     out.textContent = String(round(value));
+    syncers.push(() => {
+      const v = (p[s.key] as number) / (s.deg ? DEG : 1);
+      input.value = String(v);
+      out.textContent = String(round(v));
+    });
     input.addEventListener('input', () => {
       const v = Number(input.value);
       out.textContent = String(round(v));
@@ -64,12 +89,42 @@ export function mountTuner(sim: Physarum) {
   }
 
   const pattern = document.createElement('label');
-  pattern.innerHTML = `<span>node pattern</span><select>${['hex', 'grid', 'scatter', 'none']
-    .map((v) => `<option${v === p.nodePattern ? ' selected' : ''}>${v}</option>`)
+  pattern.innerHTML = `<span>node pattern</span><select>${[
+    ['hex', 'hex'],
+    ['grid', 'grid'],
+    ['scatter', 'scatter'],
+    ['none', 'none (Jones 2010)'],
+  ]
+    .map(([v, label]) => `<option value="${v}"${v === p.nodePattern ? ' selected' : ''}>${label}</option>`)
     .join('')}</select>`;
   pattern.querySelector('select')!.addEventListener('change', (e) => {
-    p.nodePattern = (e.target as HTMLSelectElement).value as NodePattern;
-    sim.rebuildNodes();
+    const next = (e.target as HTMLSelectElement).value as NodePattern;
+    const prev = p.nodePattern;
+    p.nodePattern = next;
+    // 'none' is the paper's model: load its tuning and reseed with its random start. Leaving it
+    // restores the site's tuning for those same settings.
+    if (next === 'none' || prev === 'none') {
+      const preset = next === 'none' ? paperParams : defaultParams;
+      for (const key of Object.keys(paperParams) as (keyof Params)[]) (p[key] as unknown) = preset[key];
+      syncSliders();
+      sim.reset();
+    } else {
+      sim.rebuildNodes();
+    }
+  });
+
+  // Palette picker: switches the whole site's colors live and remembers the choice.
+  const palette = document.createElement('label');
+  const current = document.documentElement.dataset.palette;
+  palette.innerHTML = `<span>palette</span><select>${palettes
+    .map((pl) => `<option value="${pl.name}"${pl.name === current ? ' selected' : ''}>${pl.label}</option>`)
+    .join('')}</select>`;
+  palette.querySelector('select')!.addEventListener('change', (e) => {
+    const name = (e.target as HTMLSelectElement).value;
+    document.documentElement.dataset.palette = name;
+    try {
+      localStorage.setItem('palette', name);
+    } catch {}
   });
 
   const seed = document.createElement('label');
@@ -98,7 +153,50 @@ export function mountTuner(sim: Physarum) {
     }
   });
 
+  panel.prepend(palette);
   panel.append(pattern, seed, actions);
-  // Inside the persisted simulation layer so it survives client-side navigation.
-  (document.getElementById('sim-layer') ?? document.body).append(panel);
+  (document.getElementById('sim-layer') ?? document.body).append(win);
+
+  // Drag the window by its title bar, kept inside the viewport.
+  const head = win.querySelector<HTMLElement>('.tune-head')!;
+  head.addEventListener('pointerdown', (e) => {
+    if ((e.target as Element).closest('button')) return;
+    const r = win.getBoundingClientRect();
+    const dx = e.clientX - r.left;
+    const dy = e.clientY - r.top;
+    head.setPointerCapture(e.pointerId);
+    const move = (ev: PointerEvent) => {
+      const x = Math.min(Math.max(0, ev.clientX - dx), window.innerWidth - r.width);
+      const y = Math.min(Math.max(0, ev.clientY - dy), window.innerHeight - head.offsetHeight);
+      Object.assign(win.style, { left: `${x}px`, top: `${y}px`, right: 'auto', bottom: 'auto' });
+    };
+    const up = () => {
+      head.removeEventListener('pointermove', move);
+      head.removeEventListener('pointerup', up);
+      head.removeEventListener('pointercancel', up);
+    };
+    head.addEventListener('pointermove', move);
+    head.addEventListener('pointerup', up);
+    head.addEventListener('pointercancel', up);
+  });
+
+  let isOpen = false;
+  const setOpen = (open: boolean) => {
+    if (open === isOpen) return;
+    isOpen = open;
+    win.hidden = !open;
+    onChange(open);
+    if (open) win.querySelector<HTMLElement>('.tune-close')!.focus();
+  };
+  win.querySelector('.tune-close')!.addEventListener('click', () => setOpen(false));
+  win.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') setOpen(false);
+  });
+
+  return {
+    open: () => setOpen(true),
+    close: () => setOpen(false),
+    toggle: () => setOpen(!isOpen),
+    isOpen: () => isOpen,
+  };
 }
