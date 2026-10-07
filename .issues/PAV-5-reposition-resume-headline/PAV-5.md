@@ -83,5 +83,43 @@ These changes come after the progress comment above and replace the About intro 
 - LinkedIn headline to match.
 - After merge: check that LinkedIn picks up `og-card-3.jpg`, and check the `noindex` header on both résumé PDFs.
 </comment>
+<comment author="Gleb Pavlov">
+**Follow-up: pipeline figures recalculated from the five-slot run**
+
+The pipeline's figures on the Work page and the résumé now come from its five-concurrent run (`run-1ae0a1ce4ac3`, 2026-10-02 17:03Z to 2026-10-03 05:06Z). They replace the first-month numbers (106 PRs; 67% / 92% / 99%).
+
+**Throughput: a mean of 100 tickets per 24 hours**
+- **Shipped:** 34 tickets in a 12h 03m run, each with a draft PR open, a Linear comment, and the ticket moved to review. Another 4 tickets were parked for a human decision.
+- **Steady-state rate:** measured from the gaps between completions while all five slots were full:
+
+| Stretch | Gaps between completions | Hours | Rate |
+|---|---|---|---|
+| 17:41 → 21:33 | 17 | 3.87 | 4.40/hr |
+| 01:41 → 05:06 | 15 | 3.42 | 4.39/hr |
+| Combined | 32 | 7.29 | 4.39/hr |
+
+- **Daily figure:** 4.39 × 24 ≈ 105, quoted as a **mean of 100 per 24 hours**. This assumes full operator engagement and no downtime.
+  - The measured run lost time to a machine reboot, two session restarts, and a 4-hour stall waiting on the operator.
+  - Restart losses and slots pre-filled during the stall roughly cancel out.
+  - A realistic band is 100–115.
+- **Caveat:** this is a projection from a 12-hour run, not a counted 24 hours. It assumes a hand-picked ticket mix similar to this run's, and the same machine (16 cores, where 5 slots is the practical ceiling before load-driven test flakes).
+
+**Review pass rate, weighted by attempt (34 shipped PRs)**
+
+| Attempts | PRs | Weight | Passed by this attempt |
+|---|---|---|---|
+| 1 | 27 | 79% | 79% |
+| 2 | 4 | 12% | 91% |
+| 3 | 3 | 9% | 100% |
+
+Weighted mean: (27×1 + 4×2 + 3×3) ÷ 34 = **1.29 ≈ 1.3 attempts**. The 4 parked tickets are excluded, because they stopped for a decision rather than failing review. Counting them as not passing gives 71% / 82% / 89%.
+
+**Wording now in use**
+- **Work page** (Bulqit bullet and the pipeline project card): "Running five tickets at a time, it processes a mean of 100 tickets per 24 hours, and its pull requests pass review in a weighted mean of 1.3 attempts: 79% on the first, 12% on the second, and 9% on the third."
+- **Résumé bullet:** "Five tickets at a time, it handles a mean of 100 per 24 hours; PRs pass review in a weighted mean of 1.3 attempts (79% first, 12% second, 9% third)." The bullet was tightened to keep the full résumé at 3 pages, and the duplicate "99%" was dropped from the résumé project entry.
+- **Unchanged on purpose:** the AI Ticket Triage project keeps "82% … versus 67% overall". That 67% is the first-month baseline the triage system is compared against.
+
+All four résumé builds are 3 pages. The public PDFs on the site are replaced, and the changes are pushed to PR #4.
+</comment>
 </comments>
 </issue>
