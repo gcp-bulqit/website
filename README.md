@@ -22,7 +22,11 @@ bottom-right corner pause the simulation, reseed it, or hide the page so you can
 - `src/scripts/physarum.ts`: the simulation (agent, diffuse, deposit and display shader passes). Tune `defaultParams` and `density`.
 - **Tuning:** the **Tune** button (bottom right) opens a window of live sliders, the palette picker and node patterns (`none` runs the Jones 2010 model). `?tune` in the URL opens it on load. "Copy params" copies a `defaultParams` block you can paste back into `physarum.ts`.
 - `src/components/SlimeField.astro`: canvas, frame/HUD and controls. Reads colors from CSS.
-- **URL switches** (read on the first page load): `?paused` starts paused on one settled reseed; `?nogl` skips WebGL to preview the no-WebGL2 fallback.
+- **URL switches** (read on the first page load):
+  - `?paused` starts paused on one settled reseed.
+  - `?nogl` skips WebGL to preview the no-WebGL2 fallback.
+  - `?split` (or `?split=20`) starts with 4 species, then after 10 (or 20) seconds of animation turns species repel to its maximum.
+  - `?outline=dog.svg` makes the slime follow an image's outline instead of the food nodes (prototype). Any image on the site works; `public/dog.svg` (the GitHub avatar) and `public/gcp.svg` (the initials) are made for it. Combines with `?split`.
 - `src/data/palettes.ts`: color palettes (light and dark modes, including the slime color ramp). Add one there and it appears in the Tune window; `defaultPalette` picks what visitors see.
 - `src/styles/global.css`: layout, type and non-color tokens.
 - `src/layouts/Base.astro`: shared layout (header, nav, footer, theme toggle).

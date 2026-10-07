@@ -38,6 +38,13 @@ export type Params = {
   nodeFood: number; // trail added at a node centre per step
   nodeMarkers: number; // 0..1 opacity of the ring drawn around each node
   seedFromNodes: boolean; // start agents at the nodes facing outward (else a ring)
+  // Outline mode (setOutline): the image's edges replace the nodes as food.
+  outlineFood: number; // trail added along the outline per step (replaces nodeFood)
+  outlineWidth: number; // trail pixels: blur radius that widens the edge into a band agents can sense
+  outlinePull: number; // how strongly agents steer toward the outline itself (sensed directly)
+  outlineKeep: number; // 0..1 extra trail decay per step away from the outline (kills shortcuts)
+  outlineHalo: number; // weight of a wide faint halo that guides stray agents back to the outline
+  outlineRepel: number; // push out of the shape's interior: fights the line so threads grow outward
   // Navigation disturbance (see disturb()).
   navFade: number; // 0..1 share of the trail wiped out on navigation
   navScramble: number; // 0..1 share of agents given a random heading
@@ -84,6 +91,12 @@ export const defaultParams: Params = {
   nodeJitter: 0.35,
   nodeRadius: 3,
   nodeFood: 0.6,
+  outlineFood: 0.05,
+  outlineWidth: 2.5,
+  outlinePull: 4,
+  outlineKeep: 0.03,
+  outlineHalo: 0,
+  outlineRepel: 4,
   nodeMarkers: 0.35,
   seedFromNodes: true,
   navFade: 0.65,
@@ -152,6 +165,12 @@ export type Physarum = {
   disturb(opts: { nodeSeed: number; x?: number; y?: number; rebuild?: boolean; settle?: boolean }): void;
   // Pre-run `steps` simulation steps in small batches while not animating (no-op when animating).
   settle(steps: number): void;
+  // Follow an image's outline instead of the food nodes: its edges become food and new agents
+  // start along them. The image is fitted into the viewport, beside any exclusion zones when there
+  // is room. Dark or opaque pixels count as the shape (alpha × darkness), so a black silhouette on
+  // a transparent or light background works best. null returns to the nodes.
+  setOutline(img: (CanvasImageSource & { width: number; height: number }) | null): void;
+  hasOutline(): boolean;
   destroy(): void;
 };
 
@@ -167,6 +186,9 @@ uniform sampler2D uAgents;
 uniform sampler2D uTrail;
 uniform sampler2D uNodes; // b = exclusion-zone repel mask
 uniform float uZoneRepel;
+uniform float uOutlinePull; // outline mode: agents sense the outline (node texture .r) directly
+uniform float uOutlineHalo; // outline mode: its wide halo (node texture .g > 0, outside the shape)
+uniform float uOutlineRepel; // outline mode: the interior's push (node texture .g < 0, inside)
 uniform vec2 uTrailSize;
 uniform vec4 uSpSA, uSpSD, uSpTurn, uSpStep; // per-species sensor angle/dist, turn, step
 uniform vec4 uAttract[4]; // per species: weight of each trail channel when sensing
@@ -191,6 +213,9 @@ float sense(vec2 pos, float a, float dist, vec4 w) {
   // Response peaks at uSaturation and falls off beyond it.
   if (uSaturation > 0.0 && v > 0.0) v *= exp(1.0 - v / uSaturation);
   v -= zone;
+  vec4 nd = texture(uNodes, p);
+  // After saturation, so crowding never cancels these.
+  v += nd.r * uOutlinePull + (nd.g > 0.0 ? nd.g * uOutlineHalo : nd.g * uOutlineRepel);
   vec2 d = (fract(p) - uPointer.xy) * uTrailSize;
   v += uPointer.z * exp(-dot(d, d) / (uPointerRadius * uPointerRadius));
   return v;
@@ -260,6 +285,7 @@ uniform float uPointerRadius;
 uniform vec4 uChannels; // 1 for each species' channel in use
 uniform bool uSoftBlur;
 uniform bool uNodeSpecies; // species mode: a node feeds only its own species (node texture .a)
+uniform float uOutlineKeep; // outline mode: extra decay away from the outline (node texture .r)
 out vec4 outTrail;
 void main() {
   vec2 px = 1.0 / uTrailSize;
@@ -280,6 +306,7 @@ void main() {
   }
   s *= uDecay;
   vec4 node = texture(uNodes, uv);
+  s *= 1.0 - uOutlineKeep * (1.0 - smoothstep(0.05, 0.35, node.r));
   vec4 feed = uNodeSpecies ? vec4(equal(vec4(floor(node.a + 0.5)), vec4(0.0, 1.0, 2.0, 3.0))) : uChannels;
   s += node.r * uNodeFood * feed;
   s *= 1.0 - uZoneClear * min(texture(uNodes, uv).b, 1.0);
@@ -483,6 +510,8 @@ export function createPhysarum(
   const nodeSpecies = (k: number) => nodes[k]?.[2] ?? 0;
   let nodeSeed = opts.nodeSeed ?? 1;
   let nodeTex: WebGLTexture | null = null;
+  let outline: (CanvasImageSource & { width: number; height: number }) | null = null;
+  let outlinePts: number[] = []; // x, y, species triples of trail cells on the outline (for seeding)
 
   // Each node is [x, y, species]. Positions come from the page's nodeSeed; species are a random
   // draw from speciesSeed, reshuffled on every reseed and page change. (Regular patterns line
@@ -580,8 +609,122 @@ export function createPhysarum(
     }
   };
 
+  // Outline food (red channel) and species (alpha) from the image: rasterize it at trail size, take
+  // the edge strength (Sobel), widen it with a blur so agents can sense the slope, normalize to 1.
+  const writeOutline = (data: Float32Array) => {
+    if (!outline) return;
+    const W = trailW;
+    const H = trailH;
+    const sx = canvas.clientWidth / W;
+    // Fit box: beside the exclusion zones (the home title) if that leaves enough room.
+    let left = 0;
+    const exRight = exclusions.reduce((m, r) => Math.max(m, r.right / sx), 0);
+    if (exRight > 0 && W - exRight > W * 0.4) left = exRight + 16;
+    const boxW = W - left;
+    const scale = 0.82 * Math.min(boxW / outline.width, H / outline.height);
+    const dw = outline.width * scale;
+    const dh = outline.height * scale;
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    const ctx = c.getContext('2d', { willReadFrequently: true })!;
+    ctx.drawImage(outline, left + (boxW - dw) / 2, (H - dh) / 2, dw, dh);
+    const px = ctx.getImageData(0, 0, W, H).data; // row 0 is the top
+    const v = new Float32Array(W * H);
+    for (let i = 0; i < W * H; i++) {
+      const a = px[i * 4 + 3] / 255;
+      const lum = (0.2126 * px[i * 4] + 0.7152 * px[i * 4 + 1] + 0.0722 * px[i * 4 + 2]) / 255;
+      v[i] = a * (1 - lum);
+    }
+    let e = new Float32Array(W * H);
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        const at = (dx: number, dy: number) => v[(y + dy) * W + x + dx];
+        const gx = at(1, -1) + 2 * at(1, 0) + at(1, 1) - at(-1, -1) - 2 * at(-1, 0) - at(-1, 1);
+        const gy = at(-1, 1) + 2 * at(0, 1) + at(1, 1) - at(-1, -1) - 2 * at(0, -1) - at(1, -1);
+        e[y * W + x] = Math.hypot(gx, gy);
+      }
+    }
+    // Two separable box-blur passes (close to a Gaussian) of radius outlineWidth.
+    const r = Math.max(0, Math.round(params.outlineWidth));
+    const blur = (src: Float32Array, horizontal: boolean) => {
+      const out = new Float32Array(W * H);
+      const n = horizontal ? W : H;
+      const lines = horizontal ? H : W;
+      for (let l = 0; l < lines; l++) {
+        const idx = (k: number) => (horizontal ? l * W + k : k * W + l);
+        let sum = 0;
+        for (let k = -r; k <= r; k++) sum += src[idx(Math.min(n - 1, Math.max(0, k)))];
+        for (let k = 0; k < n; k++) {
+          out[idx(k)] = sum / (2 * r + 1);
+          sum += src[idx(Math.min(n - 1, k + r + 1))] - src[idx(Math.max(0, k - r))];
+        }
+      }
+      return out;
+    };
+    const edge = e;
+    for (let pass = 0; pass < 2 && r > 0; pass++) e = blur(blur(e, true), false);
+    let max = 0;
+    for (let i = 0; i < W * H; i++) max = Math.max(max, e[i]);
+    if (max <= 0) return;
+    // Halo (green channel): the same edge blurred far wider, so agents anywhere nearby sense the
+    // way back. Blurring a blurred copy keeps it cheap: box blurs of radius HALO, three passes.
+    const HALO = Math.max(8, Math.round(Math.min(W, H) * 0.04));
+    let halo = edge;
+    const wide = (src: Float32Array, rad: number) => {
+      const out1 = new Float32Array(W * H);
+      const out2 = new Float32Array(W * H);
+      for (let y = 0; y < H; y++) {
+        let sum = 0;
+        for (let k = -rad; k <= rad; k++) sum += src[y * W + Math.min(W - 1, Math.max(0, k))];
+        for (let x = 0; x < W; x++) {
+          out1[y * W + x] = sum / (2 * rad + 1);
+          sum += src[y * W + Math.min(W - 1, x + rad + 1)] - src[y * W + Math.max(0, x - rad)];
+        }
+      }
+      for (let x = 0; x < W; x++) {
+        let sum = 0;
+        for (let k = -rad; k <= rad; k++) sum += out1[Math.min(H - 1, Math.max(0, k)) * W + x];
+        for (let y = 0; y < H; y++) {
+          out2[y * W + x] = sum / (2 * rad + 1);
+          sum += out1[Math.min(H - 1, y + rad + 1) * W + x] - out1[Math.max(0, y - rad) * W + x];
+        }
+      }
+      return out2;
+    };
+    for (let pass = 0; pass < 3; pass++) halo = wide(halo, HALO);
+    let hmax = 0;
+    for (let i = 0; i < W * H; i++) hmax = Math.max(hmax, halo[i]);
+    // Interior (negative green inside the shape): the fill blurred, so it rises toward the middle
+    // and an agent anywhere inside senses the way out.
+    let fill: Float32Array = v;
+    for (let pass = 0; pass < 2; pass++) fill = wide(fill, HALO);
+    let fmax = 0;
+    for (let i = 0; i < W * H; i++) if (v[i] > 0.5) fmax = Math.max(fmax, fill[i]);
+    // Species by patches of the outline, so each species owns stretches of it (a mesh, not stripes).
+    const S = speciesCount();
+    const BLOCK = 24;
+    outlinePts = [];
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const f = e[y * W + x] / max;
+        const gy = H - 1 - y; // the trail texture's row 0 is the bottom
+        const inside = v[y * W + x] > 0.5;
+        if (inside && fmax > 0) data[(gy * W + x) * 4 + 1] = -fill[y * W + x] / fmax;
+        else if (hmax > 0) data[(gy * W + x) * 4 + 1] = halo[y * W + x] / hmax;
+        if (f < 0.02) continue;
+        const sp = S > 1 ? Math.floor(mulberry32((speciesSeed ^ Math.imul((x / BLOCK) | 0, 73856093) ^ Math.imul((gy / BLOCK) | 0, 19349663)) >>> 0)() * S) : 0;
+        const i = (gy * W + x) * 4;
+        data[i] = f;
+        data[i + 3] = sp;
+        if (f > 0.5) outlinePts.push(x, gy, sp);
+      }
+    }
+  };
+
   const buildNodes = () => {
-    nodes = layoutNodes();
+    nodes = outline ? [] : layoutNodes();
+    outlinePts = [];
     const data = new Float32Array(trailW * trailH * 4);
     const r = Math.max(1, params.nodeRadius);
     const ring = r * 3.5;
@@ -603,6 +746,7 @@ export function createPhysarum(
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    writeOutline(data);
     if (repelZones) writeRepelMask(data);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, trailW, trailH, 0, gl.RGBA, gl.FLOAT, data);
   };
@@ -613,7 +757,17 @@ export function createPhysarum(
     const data = new Float32Array(agentCount * 4);
     const aspect = trailW / trailH;
     const fromNodes = params.seedFromNodes && nodes.length > 0;
+    const onOutline = outlinePts.length > 0;
     for (let i = 0; i < agentCount; i++) {
+      if (onOutline) {
+        // Start on the outline with random headings: the shape appears at once, then comes alive.
+        const k = Math.floor(Math.random() * (outlinePts.length / 3)) * 3;
+        data[i * 4] = (outlinePts[k] + Math.random() * 4 - 2) / trailW;
+        data[i * 4 + 1] = (outlinePts[k + 1] + Math.random() * 4 - 2) / trailH;
+        data[i * 4 + 2] = Math.random() * Math.PI * 2;
+        data[i * 4 + 3] = outlinePts[k + 2];
+        continue;
+      }
       if (fromNodes) {
         // Start clustered on a node, facing outward: branches diverge from every node.
         const k = i % nodes.length;
@@ -743,6 +897,9 @@ export function createPhysarum(
     gl.uniform1i(u.uNodes, 2);
     const arrive = repelZones ? zoneArrival() : 0;
     gl.uniform1f(u.uZoneRepel, repelZones ? params.zoneRepel + 1.5 * arrive : 0);
+    gl.uniform1f(u.uOutlinePull, outline ? params.outlinePull : 0);
+    gl.uniform1f(u.uOutlineHalo, outline ? params.outlineHalo : 0);
+    gl.uniform1f(u.uOutlineRepel, outline ? params.outlineRepel : 0);
     gl.uniform1i(u.uPaperRules, params.nodePattern === 'none' ? 1 : 0);
     gl.uniform4f(u.uWave, wave.x, wave.y, waveRadius, waveOn ? params.navWave * (1 - waveT) : 0);
     pendingScramble = 0;
@@ -762,11 +919,12 @@ export function createPhysarum(
     gl.uniform1i(d.uTrail, 0);
     gl.uniform2f(d.uTrailSize, trailW, trailH);
     gl.uniform1f(d.uDecay, params.decay * pendingFade);
+    gl.uniform1f(d.uOutlineKeep, outline ? params.outlineKeep : 0);
     pendingFade = 1;
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, nodeTex);
     gl.uniform1i(d.uNodes, 1);
-    gl.uniform1f(d.uNodeFood, params.nodeFood);
+    gl.uniform1f(d.uNodeFood, outline ? params.outlineFood : params.nodeFood);
     gl.uniform1f(d.uZoneClear, 0.25 * arrive);
     gl.uniform4f(d.uChannels, 1, S > 1 ? 1 : 0, S > 2 ? 1 : 0, S > 3 ? 1 : 0);
     gl.uniform1i(d.uSoftBlur, params.softBlur ? 1 : 0);
@@ -809,7 +967,7 @@ export function createPhysarum(
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, nodeTex);
     gl.uniform1i(u.uNodes, 1);
-    gl.uniform1f(u.uMarkers, params.nodeMarkers);
+    gl.uniform1f(u.uMarkers, outline ? 0 : params.nodeMarkers); // outline mode: .g is the halo
     // Species colors: spread across the palette's slime colors (densest first) so species
     // contrast, e.g. 2 species in a 4-color palette get the 1st and 3rd.
     const slime = stops.slice(1).reverse();
@@ -944,6 +1102,12 @@ export function createPhysarum(
       }
     },
     settle,
+    setOutline(img) {
+      outline = img;
+      buildNodes();
+      if (!active()) draw();
+    },
+    hasOutline: () => outline !== null,
     reset() {
       reshuffleSpecies();
       quietUntil = performance.now() + RESEED_QUIET_MS;

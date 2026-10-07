@@ -13,6 +13,8 @@ import { palettes } from '../data/palettes';
 const DEG = Math.PI / 180;
 
 // move: a movement setting; in species mode it sets that value for every species at once.
+// outline: only shown when the simulation is following an image outline (?outline=).
+// node: a food-node setting, hidden while following an outline (the outline replaces the nodes).
 type Slider = {
   key: keyof Params;
   label: string;
@@ -22,6 +24,8 @@ type Slider = {
   deg?: boolean;
   nodes?: boolean;
   move?: boolean;
+  outline?: boolean;
+  node?: boolean;
 };
 
 const sliders: Slider[] = [
@@ -33,11 +37,17 @@ const sliders: Slider[] = [
   { key: 'decay', label: 'decay', min: 0.6, max: 0.995, step: 0.005 },
   { key: 'saturation', label: 'saturation', min: 0, max: 5, step: 0.05 },
   { key: 'gain', label: 'gain', min: 0.2, max: 5, step: 0.05 },
-  { key: 'nodeSpacing', label: 'node spacing', min: 40, max: 500, step: 5, nodes: true },
-  { key: 'nodeJitter', label: 'node jitter', min: 0, max: 1, step: 0.05, nodes: true },
-  { key: 'nodeRadius', label: 'node radius', min: 1, max: 12, step: 0.5, nodes: true },
-  { key: 'nodeFood', label: 'node food', min: 0, max: 3, step: 0.05 },
-  { key: 'nodeMarkers', label: 'node rings', min: 0, max: 1, step: 0.05 },
+  { key: 'nodeSpacing', label: 'node spacing', min: 40, max: 500, step: 5, nodes: true, node: true },
+  { key: 'nodeJitter', label: 'node jitter', min: 0, max: 1, step: 0.05, nodes: true, node: true },
+  { key: 'nodeRadius', label: 'node radius', min: 1, max: 12, step: 0.5, nodes: true, node: true },
+  { key: 'nodeFood', label: 'node food', min: 0, max: 3, step: 0.05, node: true },
+  { key: 'nodeMarkers', label: 'node rings', min: 0, max: 1, step: 0.05, node: true },
+  { key: 'outlineFood', label: 'outline food', min: 0, max: 2, step: 0.05, outline: true },
+  { key: 'outlineWidth', label: 'outline width', min: 0, max: 8, step: 0.5, nodes: true, outline: true },
+  { key: 'outlinePull', label: 'outline pull', min: 0, max: 6, step: 0.1, outline: true },
+  { key: 'outlineKeep', label: 'outline keep', min: 0, max: 0.5, step: 0.01, outline: true },
+  { key: 'outlineHalo', label: 'outline halo', min: 0, max: 2, step: 0.05, outline: true },
+  { key: 'outlineRepel', label: 'outline repel', min: 0, max: 6, step: 0.1, outline: true },
   { key: 'navFade', label: 'nav fade', min: 0, max: 1, step: 0.05 },
   { key: 'navScramble', label: 'nav scramble', min: 0, max: 1, step: 0.05 },
   { key: 'navWave', label: 'nav wave', min: 0, max: 1, step: 0.05 },
@@ -59,7 +69,8 @@ const toSource = (p: Params) =>
     .join('\n') +
   `\n};`;
 
-export type Tuner = { open(): void; close(): void; toggle(): void; isOpen(): boolean };
+// sync: refresh every control from the current params (after they change outside the window).
+export type Tuner = { open(): void; close(): void; toggle(): void; isOpen(): boolean; sync(): void };
 
 // Builds the tuning window (hidden until opened) inside the persisted simulation layer, so it
 // survives client-side navigation. onChange reports open/closed so the Tune button can reflect it.
@@ -95,6 +106,7 @@ export function mountTuner(sim: Physarum, onChange: (open: boolean) => void = ()
   };
 
   for (const s of sliders) {
+    if (s.outline ? !sim.hasOutline() : s.node && sim.hasOutline()) continue;
     const value = read(s) / (s.deg ? DEG : 1);
     const row = document.createElement('label');
     row.innerHTML = `<span>${s.label}</span><input type="range" min="${s.min}" max="${s.max}" step="${s.step}"><output></output>`;
@@ -233,7 +245,8 @@ export function mountTuner(sim: Physarum, onChange: (open: boolean) => void = ()
   });
 
   panel.prepend(palette, species, repel);
-  panel.append(pattern, seed, toggle('soft blur', 'softBlur'), toggle('weighted turn', 'weightedTurn'), actions);
+  if (!sim.hasOutline()) panel.append(pattern, seed);
+  panel.append(toggle('soft blur', 'softBlur'), toggle('weighted turn', 'weightedTurn'), actions);
   syncSpecies();
   (document.getElementById('sim-layer') ?? document.body).append(win);
 
@@ -278,5 +291,6 @@ export function mountTuner(sim: Physarum, onChange: (open: boolean) => void = ()
     close: () => setOpen(false),
     toggle: () => setOpen(!isOpen),
     isOpen: () => isOpen,
+    sync: syncSpecies,
   };
 }

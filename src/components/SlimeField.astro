@@ -18,7 +18,7 @@
 </div>
 
 <script>
-  import { createPhysarum, type Palette } from '../scripts/physarum';
+  import { createPhysarum, MAX_SPECIES, type Palette } from '../scripts/physarum';
 
   const canvas = document.getElementById('slime') as HTMLCanvasElement;
   const readout = document.getElementById('sim-readout')!;
@@ -52,9 +52,15 @@
   // URL switches, read once on the first full load (this layer persists across navigation):
   //   ?nogl    skip WebGL entirely, to preview the fallback a browser without WebGL2 gets
   //   ?paused  start paused: seed once, settle a still frame, and wait for Play
+  //   ?split[=seconds]  start with 4 species on the standard settings, let them settle for that
+  //            many seconds of animation (default 10), then turn species repel to its maximum
+  //   ?outline=dog.svg  follow an image's outline instead of the food nodes (prototype). The path is
+  //            resolved from the site root ("dog.svg" and "/dog.svg" are the same file); only images
+  //            on this site are allowed, since the canvas can't read pixels from other origins.
   const urlFlags = new URLSearchParams(location.search);
   const noGl = urlFlags.has('nogl');
   const startPaused = urlFlags.has('paused');
+  const splitAfter = urlFlags.has('split') ? Math.max(0, Number(urlFlags.get('split')) || 10) : null;
   const sim = noGl ? null : createPhysarum(canvas, readPalette(), {
     nodeSeed: pathSeed(location.pathname),
     start: false,
@@ -81,6 +87,8 @@
     readout.textContent = 'physarum · webgl2 unavailable';
     toggle.disabled = reset.disabled = focus.disabled = tuneBtn.disabled = true;
   } else {
+    // Dev builds only: expose the simulation for tuning from the console or test scripts.
+    if (import.meta.env.DEV) (window as unknown as { __sim: typeof sim }).__sim = sim;
     const updateReadout = () => {
       const fps = !sim.isRunning() ? ' · paused' : sim.isActive() ? ` · ${Math.round(sim.fps)} fps` : ' · idle';
       readout.textContent = `physarum · ${sim.agentCount.toLocaleString()} agents${fps}`;
@@ -133,18 +141,60 @@
     // (after the pixel font loads, so it's at its real size), place the nodes around it, then
     // seed and start. Nothing is drawn before that, so the nodes never jump on load. The reseed's
     // quiet period also keeps the cursor's position on arrival from shaping the first network.
+    // ?split: 4 species with the standard settings, then after `seconds` of animation (time paused
+    // or in a background tab doesn't count) every cross-species attraction goes to -SPLIT_REPEL,
+    // the Tune window's "species repel" maximum, and the species push apart.
+    const SPLIT_REPEL = 1.5;
+    const startSplit = (seconds: number) => {
+      sim.params.species = 4;
+      let ran = 0;
+      let last = performance.now();
+      const timer = setInterval(() => {
+        const now = performance.now();
+        if (sim.isActive()) ran += now - last;
+        last = now;
+        if (ran < seconds * 1000) return;
+        clearInterval(timer);
+        sim.params.attraction = sim.params.attraction.map((x, i) => (Math.floor(i / MAX_SPECIES) === i % MAX_SPECIES ? x : -SPLIT_REPEL));
+        tuner?.then((t) => t.sync());
+      }, 250);
+    };
+
     let started = false;
     const start = () => {
       if (started) return;
       started = true;
       updateExclusions(false); // reset() below builds the nodes
+      if (splitAfter !== null) startSplit(splitAfter); // also with ?outline: 4 species along the outline
       if (!reduced && !startPaused) sim.setRunning(true);
       sim.reset();
       setLabel();
       updateReadout();
     };
-    if (document.fonts.status === 'loaded') start();
-    else Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 400))]).then(start);
+    const outlineParam = urlFlags.get('outline');
+    const outlineUrl = outlineParam ? new URL(outlineParam, `${location.origin}/`) : null;
+    if (outlineUrl && outlineUrl.origin !== location.origin) console.warn(`physarum: outline must be on this site: ${outlineParam}`);
+    const outlineSrc = outlineUrl?.origin === location.origin ? outlineUrl.href : null;
+    const outlineReady =
+      outlineSrc
+        ? (() => {
+            const img = new Image();
+            img.src = outlineSrc;
+            return img
+              .decode()
+              .then(() => {
+                // Tuned on a real GPU: one species and a light trail keep the line crisp (the site's
+                // normal deposit saturates it to a flat band) while the threads pushed out of the
+                // shape's interior stay visible.
+                Object.assign(sim.params, { species: 1, deposit: 0.03 });
+                sim.setOutline(img);
+              })
+              .catch(() => console.warn(`physarum: could not load outline ${outlineSrc}`));
+          })()
+        : Promise.resolve();
+    const fontsReady =
+      document.fonts.status === 'loaded' ? Promise.resolve() : Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 400))]);
+    Promise.all([fontsReady, outlineReady]).then(start);
     // Set when a client-side navigation starts; the new page's load finishes it (see below).
     let navigating = false;
     document.addEventListener('astro:page-load', () => {
@@ -200,7 +250,8 @@
       ));
     tuneBtn.addEventListener('click', () => getTuner().then((t) => t.toggle()));
     const maybeTune = () => {
-      if (new URLSearchParams(location.search).has('tune')) getTuner().then((t) => t.open());
+      // After any ?outline image has loaded, so the window includes the outline sliders.
+      if (new URLSearchParams(location.search).has('tune')) outlineReady.then(getTuner).then((t) => t.open());
     };
     maybeTune();
     document.addEventListener('astro:page-load', maybeTune);
