@@ -22,9 +22,9 @@ export const site = {
 
 // About page introduction: the same positioning as the résumé summary, in first person.
 export const about = [
-  'I’m a full-stack engineer with 10+ years across finance, process engineering, and software. Shipping a product is usually the easy part; the harder work comes after launch, making sure charges are right, accounts are secure, and production stays up once customers arrive.',
-  'That’s where I spend most of my time. At Bulqit, a proptech marketplace in Chicago, Los Angeles, and Austin, I own production end to end: keeping payments and billing correct on Stripe, closing security gaps, and running the releases and monitoring behind it all.',
-  'I also build AI agent systems that do real engineering work. My pipeline on Claude Code takes Linear tickets to pull requests, any number in parallel, with five specialized agents handling discovery, planning, implementation, adversarial review, and documentation. It works test-first: it writes failing integration tests that define the goal, and a ticket isn’t done until those pass alongside the existing suite and survive review. Along the way it posts to the ticket when it needs a human call or has a pull request ready, and leaves notes on the codebase so later tickets start with more context. It’s built to be interrupted and resume where it left off, and a person still makes the merge call. 99% of its pull requests pass review within three attempts.',
+  'I’m a full-stack engineer with 10+ years across finance, process engineering, and software. I started out closing the books, moved on to redesigning the processes behind them, and now write the software that runs them. I can read a P&L and a stack trace, and most of my best work happens where the two meet.',
+  'At Bulqit, a proptech marketplace in Chicago, Los Angeles, and Austin, I own production end to end: building the core product, keeping finances correct, closing security gaps, and running the releases and monitoring behind it all.',
+  'I also build AI agent systems that do real engineering work, like a test-first pipeline on Claude Code that takes Linear tickets to reviewed pull requests (more on the Projects page).',
   'I trained in accounting (B.S. Accounting and Finance), so I care that the numbers reconcile and that every system leaves an audit trail. It also means I’m comfortable working between engineering, finance, and operations. I like taking over messy systems, finding where they leak money or trust, and fixing them so they stay fixed.',
 ];
 
@@ -78,7 +78,7 @@ export const projects: Project[] = [
     details: [
       'Works test-first: it writes failing integration tests that define the goal, and a ticket is done only when they pass alongside the existing suite and survive adversarial review.',
       'Posts to the ticket when it needs a human call or has a pull request ready, and leaves notes on the codebase so later tickets start with more context.',
-      'Built to recover safely if stopped, with a staged state machine, one migration at a time, signed commits, and decision briefs, documented in 14 ADRs.',
+      'Built to be interrupted and resume where it left off, with a staged state machine, one migration at a time, signed commits, and decision briefs, documented in 14 ADRs. A person still makes the merge call.',
       '99% of its pull requests pass review within three attempts.',
     ],
     stack: ['Claude Code', 'AI agents', 'git worktrees', 'Linear'],
