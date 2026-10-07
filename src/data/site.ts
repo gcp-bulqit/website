@@ -29,15 +29,15 @@ export const about = [
 ];
 
 export const skills: { group: string; items: string[] }[] = [
-  { group: 'Languages & Frameworks', items: ['TypeScript', 'Python', 'JavaScript', 'SQL', 'Rust', 'Ruby on Rails', 'Next.js', 'React', 'Node.js', 'Flask'] },
-  { group: 'Data & Databases', items: ['PostgreSQL', 'Neon', 'Drizzle ORM', 'Database migrations', 'Data migration and ETL', 'Tableau', 'Excel (VBA)'] },
-  { group: 'Cloud & Infrastructure', items: ['AWS (S3, Lambda, EC2, EMR, Glue, Redshift)', 'Azure (Data Factory, Databricks, Data Lake Storage)', 'Docker', 'Kubernetes', 'Terraform', 'Vercel', 'Fly.io', 'Temporal workflows', 'Nix / devenv', 'mise'] },
-  { group: 'CI/CD & Release Engineering', items: ['GitHub Actions', 'Blue/green deployments', 'Merge trains', 'Release management', 'Dependabot', 'Secret scanning (gitleaks)', 'Pre-commit hooks', 'Database migration safety gates'] },
-  { group: 'Observability & Reliability', items: ['Sentry', 'Health checks', 'Synthetic monitoring', 'Tiered alerting', 'Uptime and cron monitoring', 'Incident management', 'Root cause analysis', 'Error-coverage auditing'] },
-  { group: 'Security', items: ['Role-based access control (RBAC)', 'Authentication (Clerk)', 'Account-takeover and SSRF remediation', 'PII-safe logging', 'Rate limiting', 'File upload validation', 'Dependency vulnerability gates'] },
-  { group: 'Payments & Financial Systems', items: ['Stripe (Payments, Connect)', 'Billing systems', 'Payment reconciliation', 'QuickBooks', 'Maxio (Chargify)', 'First Data', 'GAAP', 'Month-end close'] },
-  { group: 'AI & Automation', items: ['Claude Code', 'AI agents', 'Large language models (LLMs)', 'OpenRouter (Claude, GPT, Llama, Qwen, DeepSeek)', 'Ollama (local models)', 'TypeSafe Jev', 'Claude Code skills', 'Process automation'] },
-  { group: 'Integrations & Business Systems', items: ['REST APIs and webhooks', 'Twilio', 'SendGrid', 'Sanity CMS', 'Linear', 'CRM (Twenty, Zoho, Vtiger, Sonar)', 'ERP implementation'] },
+  { group: 'Languages & Frameworks', items: ['TypeScript', 'Python', 'JavaScript', 'React', 'Next.js', 'Node.js', 'SQL', 'Ruby on Rails', 'Go', 'Rust'] },
+  { group: 'AI & Automation', items: ['Claude Code (agents and skills)', 'Multi-agent pipelines', 'Model Context Protocol (MCP)', 'OpenRouter', 'LLM evaluation (evals)', 'TypeSafe Jev (typed LLM judgments)'] },
+  { group: 'Data & Databases', items: ['PostgreSQL (Neon)', 'Database migrations', 'Data migration and ETL', 'Drizzle ORM', 'Redis', 'NoSQL'] },
+  { group: 'Payments & Financial Systems', items: ['Stripe (Payments, Connect)', 'Billing systems', 'Payment reconciliation', 'Maxio (Chargify)', 'QuickBooks', 'Accounting (GAAP, month-end close)'] },
+  { group: 'Cloud & Infrastructure', items: ['AWS (S3, Lambda, EC2, EMR, Glue, Redshift)', 'Docker', 'Kubernetes', 'Terraform', 'Azure (Data Factory, Databricks, Data Lake Storage)', 'Vercel', 'Temporal workflows', 'Fly.io', 'Nix / devenv'] },
+  { group: 'Security', items: ['Authentication (Clerk)', 'Role-based access control (RBAC)', 'Application security (OWASP)', 'Rate limiting', 'Secret and dependency scanning'] },
+  { group: 'CI/CD & Release Engineering', items: ['Automated testing (integration and end-to-end)', 'GitHub Actions', 'Blue/green deployments'] },
+  { group: 'Observability & Reliability', items: ['Sentry', 'Monitoring and alerting', 'Synthetic monitoring'] },
+  { group: 'Integrations & Business Systems', items: ['REST APIs and webhooks', 'Twilio', 'SendGrid', 'Sanity CMS', 'CRM integrations'] },
 ];
 
 export const education = [
