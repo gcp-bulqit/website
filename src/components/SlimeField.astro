@@ -49,7 +49,13 @@
   };
 
   // Created idle: it starts once the page title has been measured (see start() below).
-  const sim = createPhysarum(canvas, readPalette(), {
+  // URL switches, read once on the first full load (this layer persists across navigation):
+  //   ?nogl    skip WebGL entirely, to preview the fallback a browser without WebGL2 gets
+  //   ?paused  start paused: seed once, settle a still frame, and wait for Play
+  const urlFlags = new URLSearchParams(location.search);
+  const noGl = urlFlags.has('nogl');
+  const startPaused = urlFlags.has('paused');
+  const sim = noGl ? null : createPhysarum(canvas, readPalette(), {
     nodeSeed: pathSeed(location.pathname),
     start: false,
     onError: () => {
@@ -132,7 +138,7 @@
       if (started) return;
       started = true;
       updateExclusions(false); // reset() below builds the nodes
-      if (!reduced) sim.setRunning(true);
+      if (!reduced && !startPaused) sim.setRunning(true);
       sim.reset();
       setLabel();
       updateReadout();

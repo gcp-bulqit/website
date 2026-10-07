@@ -22,6 +22,7 @@ bottom-right corner pause the simulation, reseed it, or hide the page so you can
 - `src/scripts/physarum.ts`: the simulation (agent, diffuse, deposit and display shader passes). Tune `defaultParams` and `density`.
 - **Tuning:** the **Tune** button (bottom right) opens a window of live sliders, the palette picker and node patterns (`none` runs the Jones 2010 model). `?tune` in the URL opens it on load. "Copy params" copies a `defaultParams` block you can paste back into `physarum.ts`.
 - `src/components/SlimeField.astro`: canvas, frame/HUD and controls. Reads colors from CSS.
+- **URL switches** (read on the first page load): `?paused` starts paused on one settled reseed; `?nogl` skips WebGL to preview the no-WebGL2 fallback.
 - `src/data/palettes.ts`: color palettes (light and dark modes, including the slime color ramp). Add one there and it appears in the Tune window; `defaultPalette` picks what visitors see.
 - `src/styles/global.css`: layout, type and non-color tokens.
 - `src/layouts/Base.astro`: shared layout (header, nav, footer, theme toggle).
