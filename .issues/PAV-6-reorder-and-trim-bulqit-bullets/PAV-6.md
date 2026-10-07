@@ -34,7 +34,7 @@ The release and monitoring work is real and good, but squeeze it into two bullet
 - [x] Site change committed and pushed
 </description>
 <comments>
-<comment author="Gleb Pavlov" created-at="2026-10-07T20:56:46Z">
+<comment author="Gleb Pavlov">
 Résumé side done: `build_resume.py` now carries the new Bulqit order and merged bullets, built in a full version (originals as sub-bullets, 4 pages) and a short version (summaries only, 3 pages), each with a private copy and a public no-phone copy. Details on PAV-12.
 
 Remaining for this ticket: pick the full or short version for the site, then commit and push both repos.

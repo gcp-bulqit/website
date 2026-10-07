@@ -29,7 +29,7 @@ Once the reordered, condensed wording is settled (PAV-9, then PAV-10 and PAV-11)
 - [x] Chosen version (full or short) placed on the site as `public/Gleb_Pavlov_Resume.pdf`
 </description>
 <comments>
-<comment author="Gleb Pavlov" created-at="2026-10-07T20:46:35Z">
+<comment author="Gleb Pavlov">
 Site half done locally (uncommitted, not yet live). Résumé half not started.
 
 **Site (**`gcp-bulqit/website`**)**
@@ -46,7 +46,7 @@ Site half done locally (uncommitted, not yet live). Résumé half not started.
 - [x] Regenerate the public PDF without the phone number
 - [x] Commit and push the site change
 </comment>
-<comment author="Gleb Pavlov" created-at="2026-10-07T20:56:38Z">
+<comment author="Gleb Pavlov">
 Résumé rebuilt with the new Bulqit bullets, in two versions.
 
 **Script (**`Job/gcp/scripts/build_resume.py`**, uncommitted)**

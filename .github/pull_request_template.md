@@ -28,12 +28,12 @@ from the ticket alone. Then link this PR to that ticket (Linear picks up the bra
 or the reference below) and record it here. Do not open the PR without a ticket.
 
 Linear is private, so also commit each ticket as a prompt file under `.issues/` (sub-issues
-in subfolders of their parent) and link it next to the Linear link, so anyone reading the
-PR can see the ticket. Use full GitHub URLs (relative links don't work in PR descriptions),
-pointing at this PR's branch: the files only reach `main` when the PR merges. List
-sub-issues indented under their parent.
+in subfolders of their parent) and link its folder next to the Linear link, so anyone
+reading the PR can see the ticket. Use full GitHub URLs to the folder on `main` (relative
+links don't work in PR descriptions); they resolve once the PR merges. List sub-issues
+indented under their parent.
 -->
-- [PAV-____](https://linear.app/pavlovsdogma/issue/PAV-____) · [.issues](https://github.com/gcp-bulqit/website/blob/<branch>/.issues/PAV-____-<slug>/PAV-____.md): <title>
+- [PAV-____](https://linear.app/pavlovsdogma/issue/PAV-____) · [.issues](https://github.com/gcp-bulqit/website/tree/main/.issues/PAV-____-<slug>): <title>
 
 ## Project
 

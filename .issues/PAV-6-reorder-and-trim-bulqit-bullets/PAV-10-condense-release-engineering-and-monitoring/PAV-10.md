@@ -34,7 +34,7 @@ The release and monitoring work is real, but it currently takes up most of the B
 - [x] The release and monitoring work fits in two bullets, each with its strongest number
 </description>
 <comments>
-<comment author="Gleb Pavlov" created-at="2026-10-07T20:46:33Z">
+<comment author="Gleb Pavlov">
 Condensed on the site's Work page (local, uncommitted, not yet live). The release and monitoring work is now two bullets behind "more", each with the original bullets in full in a "Details" accordion.
 
 **Shipping safely** (folds in releases and the CI test suite):

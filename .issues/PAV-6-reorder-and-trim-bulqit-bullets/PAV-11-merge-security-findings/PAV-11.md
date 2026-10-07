@@ -31,7 +31,7 @@ Tell the security story once, in one tight line. The detail ("five account-takeo
 - [x] One security bullet, outcome first, no list of individual findings
 </description>
 <comments>
-<comment author="Gleb Pavlov" created-at="2026-10-07T20:46:34Z">
+<comment author="Gleb Pavlov">
 Merged on the site's Work page (local, uncommitted, not yet live). Security is now one line, at #4 in the visible top five:
 
 > Closed critical account-takeover and authentication vulnerabilities, then added admin role-based access control with audit logging and database-backed rate limiting.

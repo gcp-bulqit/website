@@ -29,7 +29,7 @@ Everything else (release engineering, monitoring, tooling) follows as the two co
 - [x] Résumé Bulqit section opens with the same five, in this order
 </description>
 <comments>
-<comment author="Gleb Pavlov" created-at="2026-10-07T20:46:31Z">
+<comment author="Gleb Pavlov">
 Reorder applied to the site's Work page (local, uncommitted, not yet live).
 
 **New Bulqit order**
@@ -50,7 +50,7 @@ Reorder applied to the site's Work page (local, uncommitted, not yet live).
 
 Résumé (`build_resume.py`) not changed yet; that's PAV-12.
 </comment>
-<comment author="Gleb Pavlov" created-at="2026-10-07T20:56:43Z">
+<comment author="Gleb Pavlov">
 The résumé now opens with the same top five as the Work page: product, AI pipeline, payments, security, SMS outage fix. Built from `build_resume.py` in full and short versions (details on PAV-12). Both halves of this ticket are now done.
 </comment>
 </comments>
