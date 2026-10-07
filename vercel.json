@@ -27,7 +27,7 @@
       ]
     },
     {
-      "source": "/Gleb_Pavlov_Resume.pdf",
+      "source": "/Gleb_Pavlov_Resume(.*).pdf",
       "headers": [
         {
           "key": "X-Robots-Tag",
