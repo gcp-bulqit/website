@@ -25,3 +25,9 @@ pnpm-debug.log*
 
 # vercel
 .vercel
+
+# Claude Code MCP servers (local config, not shared)
+.mcp.json
+
+# Local working files (not shared)
+working/

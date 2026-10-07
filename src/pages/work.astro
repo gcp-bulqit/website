@@ -1,9 +1,10 @@
 ---
 import Base from '../layouts/Base.astro';
+import Highlight from '../components/Highlight.astro';
 import { projects, experience, earlierExperience } from '../data/site';
 
 // Highlights shown before the "more" disclosure on each role.
-const SHOWN = 4;
+const SHOWN = 5;
 ---
 
 <Base title="Work" chapter="02 / Work" description="Work history and selected projects.">
@@ -32,7 +33,7 @@ const SHOWN = 4;
               {role.context && <p class="muted context">{role.context}</p>}
               <ul class="highlights">
                 {role.highlights.slice(0, SHOWN).map((h) => (
-                  <li>{h}</li>
+                  <Highlight item={h} />
                 ))}
               </ul>
               {role.highlights.length > SHOWN && (
@@ -40,7 +41,7 @@ const SHOWN = 4;
                   <summary>{role.highlights.length - SHOWN} more</summary>
                   <ul class="highlights">
                     {role.highlights.slice(SHOWN).map((h) => (
-                      <li>{h}</li>
+                      <Highlight item={h} />
                     ))}
                   </ul>
                 </details>

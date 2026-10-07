@@ -1,0 +1,28 @@
+---
+// One résumé bullet on the Work page. A merged bullet shows its short summary, with the
+// original bullets in full inside an accordion underneath.
+import type { Highlight } from '../data/site';
+
+interface Props {
+  item: Highlight;
+}
+const { item } = Astro.props;
+---
+
+{
+  typeof item === 'string' ? (
+    <li>{item}</li>
+  ) : (
+    <li>
+      {item.text}
+      <details class="full">
+        <summary>Details</summary>
+        <ul class="highlights">
+          {item.details.map((d) => (
+            <li>{d}</li>
+          ))}
+        </ul>
+      </details>
+    </li>
+  )
+}
