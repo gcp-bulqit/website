@@ -6,7 +6,7 @@ export const site = {
   initials: 'GCP', // home tab label in the header
   // Rendered on two lines on the home page.
   nameLines: ['Gleb', 'Pavlov'],
-  role: 'Software Developer',
+  role: 'Full-Stack Engineer',
   tagline: 'I build systems, tools, and the occasional website.',
   location: 'Chicago, IL',
   url: 'https://www.pavlovsdogma.com',
@@ -20,12 +20,12 @@ export const site = {
   ],
 };
 
-// About page introduction, adapted to first person from the résumé summary.
+// About page introduction: the same positioning as the résumé summary, in first person.
 export const about = [
-  'I’m a Director of Operations Engineering with 10+ years across finance, process engineering, and platform operations.',
-  'I own production for a proptech marketplace in Chicago, Los Angeles, and Austin: blue/green release engineering, CI/CD quality gates, observability, security, and payments and billing correctness on Stripe.',
-  'I designed and operate an AI agent pipeline on Claude Code that shipped 106 reviewed pull requests in its first month, fed by an LLM triage system I built.',
-  'I trained in accounting (B.S. Accounting and Finance), which grounds my focus on reconciliation, audit trails, and correctness in every system I ship.',
+  'I’m a full-stack engineer with 10+ years across finance, process engineering, and software. Shipping a product is usually the easy part; the harder work comes after launch, making sure charges are right, accounts are secure, and production stays up once customers arrive.',
+  'That’s where I spend most of my time. At Bulqit, a proptech marketplace in Chicago, Los Angeles, and Austin, I own production end to end: keeping payments and billing correct on Stripe, closing security gaps, and running the releases and monitoring behind it all.',
+  'I also build AI agent systems that do real engineering work. My pipeline on Claude Code takes Linear tickets to pull requests, any number in parallel, with five specialized agents handling discovery, planning, implementation, adversarial review, and documentation. It works test-first: it writes failing integration tests that define the goal, and a ticket isn’t done until those pass alongside the existing suite and survive review. Along the way it posts to the ticket when it needs a human call or has a pull request ready, and leaves notes on the codebase so later tickets start with more context. It’s built to be interrupted and resume where it left off, and a person still makes the merge call. 99% of its pull requests pass review within three attempts.',
+  'I trained in accounting (B.S. Accounting and Finance), so I care that the numbers reconcile and that every system leaves an audit trail. It also means I’m comfortable working between engineering, finance, and operations. I like taking over messy systems, finding where they leak money or trust, and fixing them so they stay fixed.',
 ];
 
 export const skills: { group: string; items: string[] }[] = [
@@ -74,10 +74,12 @@ export const projects: Project[] = [
     title: 'Autonomous AI Agent Pipeline',
     year: '2026',
     summary:
-      'A Claude Code system that turns Linear tickets into reviewed pull requests: a supervisor and five specialized agents (discovery, planning, implementation, adversarial review, documentation) running up to five tickets in parallel, each in its own git worktree and database.',
+      'A Claude Code system that turns Linear tickets into reviewed pull requests: a supervisor and five specialized agents (discovery, planning, implementation, adversarial review, documentation) running any number of tickets in parallel, each in its own git worktree and database.',
     details: [
+      'Works test-first: it writes failing integration tests that define the goal, and a ticket is done only when they pass alongside the existing suite and survive adversarial review.',
+      'Posts to the ticket when it needs a human call or has a pull request ready, and leaves notes on the codebase so later tickets start with more context.',
       'Built to recover safely if stopped, with a staged state machine, one migration at a time, signed commits, and decision briefs, documented in 14 ADRs.',
-      'Shipped 106 pull requests in its first month, 99% passing review within three attempts.',
+      '99% of its pull requests pass review within three attempts.',
     ],
     stack: ['Claude Code', 'AI agents', 'git worktrees', 'Linear'],
   },
@@ -166,7 +168,7 @@ export const experience: Role[] = [
     // operations work. A merged item's `details` keep the original bullets in full.
     highlights: [
       'Designed and shipped a one-time services product line end to end (checkout, scheduling, and charge on completion) behind a feature flag after five adversarial design reviews.',
-      'Designed and operate an AI agent pipeline on Claude Code: five specialized agents working in parallel, isolated git worktrees, adversarial review, and signed commits. It shipped 106 pull requests in its first month, with 67% passing review on the first attempt, 92% within two, and 99% within three.',
+      'Designed and operate an AI agent pipeline on Claude Code that takes Linear tickets to pull requests: five specialized agents working test-first, with failing integration tests defining each goal, adversarial review, and a person making the merge call. 67% of its pull requests pass review on the first attempt, 92% within two, and 99% within three.',
       {
         text: 'Rebuilt billing so the money is never wrong: a locked invoice ledger that corrected Stripe’s fee model and reconciled vendor earnings, and retry-safe charging that makes double charges impossible, with a daily money monitor and reconciliation for finance.',
         details: [
