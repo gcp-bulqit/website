@@ -633,6 +633,15 @@ main {
 .role summary:hover {
   color: var(--accent);
 }
+/* A merged bullet's accordion: the original bullets in full, set back from the summary. */
+.role details.full {
+  margin-top: 0.3rem;
+}
+.role details.full .highlights {
+  padding-left: 1rem;
+  border-left: 1px solid var(--line);
+  color: var(--muted);
+}
 .earlier {
   font-size: 1rem;
   margin: 1.25rem 0 0;

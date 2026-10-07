@@ -139,6 +139,8 @@ export const posts: Post[] = [
   },
 ];
 
+export type Highlight = string | { text: string; details: string[] };
+
 export type Role = {
   title: string;
   altTitle?: string;
@@ -147,7 +149,8 @@ export type Role = {
   start: string;
   end: string;
   context?: string;
-  highlights: string[];
+  // A plain string, or a short summary whose full original bullets open in an accordion.
+  highlights: Highlight[];
 };
 
 export const experience: Role[] = [
@@ -159,18 +162,40 @@ export const experience: Role[] = [
     end: 'Present',
     context:
       'Proptech marketplace that groups neighborhoods into buying groups for recurring home services. Stack: Next.js, TypeScript, PostgreSQL, Temporal, Stripe, Twilio, Vercel, Fly.io.',
+    // Order: product, AI, payments, security, the SMS fix, then the condensed release and
+    // operations work. A merged item's `details` keep the original bullets in full.
     highlights: [
-      'Took over production from the founding development agency with no in-house release process; designed blue/green deployment slots with protected branches, CI-gated promotions, and slot-aware worker deploys, then triggered 89% of production deploys, including one release of 116 new tickets and 7 database migrations.',
-      'Designed and operate an AI agent pipeline on Claude Code: five specialized agents working in parallel, isolated git worktrees, adversarial review, and signed commits. It shipped 106 pull requests in its first month, with 67% passing review on the first attempt, 92% within two, and 99% within three.',
-      'Traced inconsistent fees to a ledger that recalculated charges from live settings and modeled Stripe’s fee as a flat 3.0% instead of 2.9% plus 30 cents; rebuilt it as a locked invoice line-item ledger and reconciled three conflicting vendor-earnings figures into a single definition.',
-      'Found only 25 of 385 integration test files running in CI and a harness defect hiding failures; restored the suite on every pull request, scoped CI to essential suites, and cut failing test files from 81 to 5, adding secret scanning, dependency advisory, and migration-order gates.',
-      'Inherited background workers that could stop silently and reported every release as “dev”; built health checks across 14 third-party dependencies with automatic Fly.io machine replacement, release-stamped Sentry reporting, tiered alerts, and an hourly synthetic probe that proves alerting works.',
-      'Eliminated double-charge risk on retries with durable Stripe idempotency keys and reconcile-before-retry, proved charges cannot double-apply with real-database race tests, and launched a daily monitor of four money invariants plus a Stripe and QuickBooks reconciliation export for finance.',
-      'Resolved a production SMS outage caused by an account-wide Twilio binding limit shared across environments; isolated each environment’s number pool and webhooks, increasing messaging capacity by 1,067% for $85 a month and cutting cost per connection by about 70%.',
-      'Closed five critical account-takeover paths, an unauthenticated credit-minting endpoint, and a production OTP backdoor; implemented admin role-based access control with audit logging and lockout protection, and moved rate limiting to PostgreSQL after finding the in-memory limiter never enforced on serverless.',
-      'Wrote and designed Claude Code skills that make high-risk business operations repeatable and auditable: production promotion pre-flight, merge trains, database and CMS content syncs with checkpoint-based conflict detection, telephony provisioning, and velocity reporting.',
       'Designed and shipped a one-time services product line end to end (checkout, scheduling, and charge on completion) behind a feature flag after five adversarial design reviews.',
-      'Built out the team’s reproducible devenv/Nix development environment: local PostgreSQL, Temporal, Twilio mocks, secret scanning, and AI tooling context in a single command.',
+      'Designed and operate an AI agent pipeline on Claude Code: five specialized agents working in parallel, isolated git worktrees, adversarial review, and signed commits. It shipped 106 pull requests in its first month, with 67% passing review on the first attempt, 92% within two, and 99% within three.',
+      {
+        text: 'Rebuilt billing so the money is never wrong: a locked invoice ledger that corrected Stripe’s fee model and reconciled vendor earnings, and retry-safe charging that makes double charges impossible, with a daily money monitor and reconciliation for finance.',
+        details: [
+          'Traced inconsistent fees to a ledger that recalculated charges from live settings and modeled Stripe’s fee as a flat 3.0% instead of 2.9% plus 30 cents; rebuilt it as a locked invoice line-item ledger and reconciled three conflicting vendor-earnings figures into a single definition.',
+          'Eliminated double-charge risk on retries with durable Stripe idempotency keys and reconcile-before-retry, proved charges cannot double-apply with real-database race tests, and launched a daily monitor of four money invariants plus a Stripe and QuickBooks reconciliation export for finance.',
+        ],
+      },
+      {
+        text: 'Closed critical account-takeover and authentication vulnerabilities, then added admin role-based access control with audit logging and database-backed rate limiting.',
+        details: [
+          'Closed five critical account-takeover paths, an unauthenticated credit-minting endpoint, and a production OTP backdoor; implemented admin role-based access control with audit logging and lockout protection, and moved rate limiting to PostgreSQL after finding the in-memory limiter never enforced on serverless.',
+        ],
+      },
+      'Resolved a production SMS outage caused by an account-wide Twilio binding limit shared across environments; isolated each environment’s number pool and webhooks, increasing messaging capacity by 1,067% for $85 a month and cutting cost per connection by about 70%.',
+      {
+        text: 'Took over production from the founding agency and built the release process: blue/green deployments with CI-gated promotions (89% of production deploys, including a 116-ticket release) and a restored integration test suite that cut failing test files from 81 to 5.',
+        details: [
+          'Took over production from the founding development agency with no in-house release process; designed blue/green deployment slots with protected branches, CI-gated promotions, and slot-aware worker deploys, then triggered 89% of production deploys, including one release of 116 new tickets and 7 database migrations.',
+          'Found only 25 of 385 integration test files running in CI and a harness defect hiding failures; restored the suite on every pull request, scoped CI to essential suites, and cut failing test files from 81 to 5, adding secret scanning, dependency advisory, and migration-order gates.',
+        ],
+      },
+      {
+        text: 'Built the operational safety net: health checks across 14 dependencies with automatic machine replacement, release-stamped Sentry and tiered alerts, approval-gated Claude Code skills for high-risk operations, and a one-command devenv/Nix environment.',
+        details: [
+          'Inherited background workers that could stop silently and reported every release as “dev”; built health checks across 14 third-party dependencies with automatic Fly.io machine replacement, release-stamped Sentry reporting, tiered alerts, and an hourly synthetic probe that proves alerting works.',
+          'Wrote and designed Claude Code skills that make high-risk business operations repeatable and auditable: production promotion pre-flight, merge trains, database and CMS content syncs with checkpoint-based conflict detection, telephony provisioning, and velocity reporting.',
+          'Built out the team’s reproducible devenv/Nix development environment: local PostgreSQL, Temporal, Twilio mocks, secret scanning, and AI tooling context in a single command.',
+        ],
+      },
       'Resolved 408 engineering issues, 26% of everything the team completed, including 150 urgent or high-priority issues. Authored 342 pull requests across 245 tickets.',
     ],
   },
