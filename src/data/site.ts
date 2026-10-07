@@ -79,7 +79,7 @@ export const projects: Project[] = [
       'Works test-first: it writes failing integration tests that define the goal, and a ticket is done only when they pass alongside the existing suite and survive adversarial review.',
       'Posts to the ticket when it needs a human call or has a pull request ready, and leaves notes on the codebase so later tickets start with more context.',
       'Built to be interrupted and resume where it left off, with a staged state machine, one migration at a time, signed commits, and decision briefs, documented in 14 ADRs. A person still makes the merge call.',
-      '99% of its pull requests pass review within three attempts.',
+      'Running five tickets at a time, it processes a mean of 100 tickets per 24 hours, and its pull requests pass review in a weighted mean of 1.3 attempts: 79% on the first, 12% on the second, and 9% on the third.',
     ],
     stack: ['Claude Code', 'AI agents', 'git worktrees', 'Linear'],
   },
@@ -168,7 +168,7 @@ export const experience: Role[] = [
     // operations work. A merged item's `details` keep the original bullets in full.
     highlights: [
       'Designed and shipped a one-time services product line end to end (checkout, scheduling, and charge on completion) behind a feature flag after five adversarial design reviews.',
-      'Designed and operate an AI agent pipeline on Claude Code that takes Linear tickets to pull requests: five specialized agents working test-first, with failing integration tests defining each goal, adversarial review, and a person making the merge call. 67% of its pull requests pass review on the first attempt, 92% within two, and 99% within three.',
+      'Designed and operate an AI agent pipeline on Claude Code that takes Linear tickets to pull requests: five specialized agents working test-first, with failing integration tests defining each goal, adversarial review, and a person making the merge call. Running five tickets at a time, it processes a mean of 100 tickets per 24 hours, and its pull requests pass review in a weighted mean of 1.3 attempts: 79% on the first, 12% on the second, and 9% on the third.',
       {
         text: 'Rebuilt billing so the money is never wrong: a locked invoice ledger that corrected Stripe’s fee model and reconciled vendor earnings, and retry-safe charging that makes double charges impossible, with a daily money monitor and reconciliation for finance.',
         details: [
