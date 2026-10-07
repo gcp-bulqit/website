@@ -25,7 +25,7 @@ Scope
 
 The MIT license above covers the source code in this repository. It does not cover
 the personal content: the résumé (public/Gleb_Pavlov_Resume.pdf), the text in
-src/data/site.ts, and the preview image (public/og-card.jpg). Those are all rights reserved.
+src/data/site.ts, and the preview image (public/og-card-2.jpg). Those are all rights reserved.
 
 The ProggyClean Nerd Font in public/fonts/ keeps its own license
 (public/fonts/ProggyClean-LICENSE.txt).
