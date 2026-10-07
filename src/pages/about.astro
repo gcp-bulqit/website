@@ -6,7 +6,7 @@ import { site, about, skills, education, languages } from '../data/site';
 <Base title="About" chapter="01 / About" description={`${site.name}, ${site.role} in ${site.location}.`}>
   <section class="panel">
     {about.map((p) => <p>{p}</p>)}
-    <p style="margin:0">
+    <p class="flush">
       Get in touch at <a href={`mailto:${site.email}`}>{site.email}</a> or on{' '}
       <a href={site.social.find((s) => s.label === 'LinkedIn')?.href}>LinkedIn</a>.
     </p>
@@ -40,7 +40,7 @@ import { site, about, skills, education, languages } from '../data/site';
           <span class="year">{e.years}</span>
           <div>
             <h3>{e.degree}</h3>
-            <p class="muted" style="margin:0">
+            <p class="muted flush">
               {e.school} · {e.note}
             </p>
           </div>

@@ -14,6 +14,7 @@ bottom-right corner pause the simulation, reseed it, or hide the page so you can
 | `npm run dev`     | Dev server at `localhost:4321`       |
 | `npm run build`   | Build the static site into `./dist/` |
 | `npm run preview` | Preview the production build         |
+| `npm run check`   | Type-check (`astro check`); CI runs it with the build |
 
 ## Where things live
 
@@ -34,3 +35,7 @@ The live site is https://www.pavlovsdogma.com; if the domain changes, update `si
 ## Credits
 
 The simulation follows Jeff Jones' Physarum model and Sage Jenson's GPU write-up. Multi-species mode, random species settings and weighted turning follow Michael Fogleman's [physarum](https://github.com/fogleman/physarum) (MIT).
+
+## License
+
+The code is MIT licensed; see [LICENSE](LICENSE). Personal content (the résumé, the text in `src/data/site.ts` and the profile image) is not covered, and the font keeps its own license.

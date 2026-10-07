@@ -693,3 +693,8 @@ strong {
 .note {
   margin: 0.5rem 0 0;
 }
+/* A paragraph that ends its panel or entry: no trailing gap. The element selector matches .entry p's
+   specificity, and this rule comes later, so it wins there too. */
+p.flush {
+  margin: 0;
+}
