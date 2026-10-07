@@ -2,7 +2,7 @@ Work on Linear issue PAV-5: Reposition résumé headline for full-stack / genera
 
 <issue identifier="PAV-5" url="https://linear.app/pavlovsdogma/issue/PAV-5/reposition-resume-headline-for-full-stack-generalist-roles">
 <title>Reposition résumé headline for full-stack / generalist roles</title>
-<status>Todo</status>
+<status>Done</status>
 <team>Pavlovsdogma</team>
 <labels>website</labels>
 <assignee>Gleb Pavlov</assignee>
@@ -20,9 +20,9 @@ Keep the Director title, but add a line on scope so nobody thinks this is an app
 
 **Done when**
 
-- [ ] Résumé headline and summary rewritten around business outcomes
-- [ ] Director title kept, with a one-line scope note (hands-on IC, not people management)
-- [ ] Site matches: home page role line and About intro use the same positioning
+- [x] Résumé headline and summary rewritten around business outcomes
+- [x] Director title kept, with a one-line scope note (hands-on IC, not people management)
+- [x] Site matches: home page role line and About intro use the same positioning
 </description>
 <comments>
 <comment author="Gleb Pavlov">
@@ -53,6 +53,34 @@ Keep the Director title, but add a line on scope so nobody thinks this is an app
 
 **Open**
 - LinkedIn headline to match (outside the repo).
+- After merge: check that LinkedIn picks up `og-card-3.jpg`, and check the `noindex` header on both résumé PDFs.
+</comment>
+<comment author="Gleb Pavlov">
+**Follow-up: About intro tightened, pipeline detail moved to Projects**
+
+These changes come after the progress comment above and replace the About intro described there.
+
+**About intro (final)**
+> I'm a full-stack engineer with 10+ years across finance, process engineering, and software. I started out closing the books, moved on to redesigning the processes behind them, and now write the software that runs them. I can read a P&L and a stack trace, and most of my best work happens where the two meet.
+>
+> At Bulqit, a proptech marketplace in Chicago, Los Angeles, and Austin, I own production end to end: building the core product, keeping finances correct, closing security gaps, and running the releases and monitoring behind it all.
+>
+> I also build AI agent systems that do real engineering work, like a test-first pipeline on Claude Code that takes Linear tickets to reviewed pull requests (more on the Projects page).
+>
+> I trained in accounting (B.S. Accounting and Finance), so I care that the numbers reconcile and that every system leaves an audit trail. It also means I'm comfortable working between engineering, finance, and operations. I like taking over messy systems, finding where they leak money or trust, and fixing them so they stay fixed.
+
+**What changed from the earlier draft**
+- **Opener:** "Shipping a product is usually the easy part…" read as too aggressive, so it's replaced with the career arc (books → processes → software) and the P&L / stack-trace line.
+- **Bulqit paragraph:**
+  - "That's where I spend most of my time." is removed.
+  - "Building the core product" is added as the first item.
+  - "Payments and billing correct on Stripe" is now "finances correct".
+- **AI paragraph:** cut to one sentence that points to the Projects section. The full description moved to the "Autonomous AI Agent Pipeline" card on the Work page, which also gains "A person still makes the merge call."
+
+**Unchanged:** the résumé (headline, summary, scope note, contact links, pipeline wording), the home role line and the link-preview card are as described in the progress comment.
+
+**Remaining, outside this ticket**
+- LinkedIn headline to match.
 - After merge: check that LinkedIn picks up `og-card-3.jpg`, and check the `noindex` header on both résumé PDFs.
 </comment>
 </comments>
