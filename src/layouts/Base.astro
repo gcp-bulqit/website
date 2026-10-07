@@ -21,8 +21,8 @@ const { title, description = `${site.name}: ${site.role}. ${site.tagline}`, chap
 const pageTitle = title ? `${title} · ${site.name}` : `${site.name}: ${site.role}`;
 const path = Astro.url.pathname.replace(/\/$/, '') || '/';
 const canonical = new URL(Astro.url.pathname, site.url);
-// Link-preview image (LinkedIn, Slack, iMessage, X): a still of the simulation at the 1.91:1 size platforms expect.
-const ogImage = new URL('/og.jpg', site.url);
+// Link-preview image (LinkedIn, Slack, iMessage, X), 1200x630. Platforms cache it by URL: give a new image a new filename.
+const ogImage = new URL('/og-card.jpg', site.url);
 ---
 
 <!doctype html>
