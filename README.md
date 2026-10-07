@@ -38,4 +38,4 @@ The simulation follows Jeff Jones' Physarum model and Sage Jenson's GPU write-up
 
 ## License
 
-The code is MIT licensed; see [LICENSE](LICENSE). Personal content (the résumé, the text in `src/data/site.ts` and the profile image) is not covered, and the font keeps its own license.
+The code is MIT licensed; see [LICENSE](LICENSE). Personal content (the résumé, the text in `src/data/site.ts` and the preview image) is not covered, and the font keeps its own license.
