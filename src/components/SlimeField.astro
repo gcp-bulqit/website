@@ -139,7 +139,18 @@
     };
     if (document.fonts.status === 'loaded') start();
     else Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 400))]).then(start);
-    document.addEventListener('astro:page-load', () => started && updateExclusions());
+    // Set when a client-side navigation starts; the new page's load finishes it (see below).
+    let navigating = false;
+    document.addEventListener('astro:page-load', () => {
+      if (!started) return;
+      updateExclusions(); // builds the new page's node layout (disturb() leaves that to us)
+      if (navigating && reduced) {
+        // Reduced motion: settle the still frame onto the new layout, but only after the new
+        // page has painted, so the simulation steps don't compete with it.
+        requestAnimationFrame(() => setTimeout(() => sim.settle(180), 0));
+      }
+      navigating = false;
+    });
     let exclusionTimer = 0;
     window.addEventListener('resize', () => {
       clearTimeout(exclusionTimer);
@@ -166,7 +177,10 @@
       const to = (e as Event & { to: URL }).to;
       if (to.pathname === location.pathname) return;
       const recent = performance.now() - press.at < 1000;
-      sim.disturb({ nodeSeed: pathSeed(to.pathname), ...(recent ? { x: press.x, y: press.y } : {}) });
+      navigating = true;
+      // No settling here: when paused the frame stays frozen (the disturbance plays on Play), and
+      // with reduced motion the page-load handler settles after the new page has painted.
+      sim.disturb({ nodeSeed: pathSeed(to.pathname), ...(recent ? { x: press.x, y: press.y } : {}), rebuild: false, settle: false });
     });
 
     // Tune window: loaded on first use. ?tune in the URL (on any page) opens it too.

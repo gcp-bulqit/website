@@ -146,7 +146,12 @@ export type Physarum = {
   reset(): void;
   // Push the network onto new paths: move the food nodes to the layout for `nodeSeed`,
   // fade the trail, scramble headings, and send a shockwave out from (x, y) in CSS pixels.
-  disturb(opts: { nodeSeed: number; x?: number; y?: number }): void;
+  // While not animating, the fade and scramble wait for the next step (e.g. pressing Play).
+  // rebuild: false leaves building the node texture to the caller (e.g. a setExclusions() that
+  // follows anyway). settle: false skips pre-running steps when not animating (default true).
+  disturb(opts: { nodeSeed: number; x?: number; y?: number; rebuild?: boolean; settle?: boolean }): void;
+  // Pre-run `steps` simulation steps in small batches while not animating (no-op when animating).
+  settle(steps: number): void;
   destroy(): void;
 };
 
@@ -924,20 +929,21 @@ export function createPhysarum(
       buildNodes();
       if (!active()) draw();
     },
-    disturb({ nodeSeed: next, x, y }) {
+    disturb({ nodeSeed: next, x, y, rebuild = true, settle: doSettle = true }) {
       nodeSeed = next;
       reshuffleSpecies();
-      buildNodes();
+      if (rebuild) buildNodes();
       pendingFade = 1 - params.navFade;
       pendingScramble = params.navScramble;
       wave.x = x === undefined ? 0.5 : x / window.innerWidth;
       wave.y = y === undefined ? 0.5 : 1 - y / window.innerHeight;
       wave.start = performance.now();
-      if (!active()) {
-        // Paused / reduced motion / background: settle on the new layout without animating.
+      if (!active() && doSettle) {
+        // Reduced motion / background: settle on the new layout without animating.
         settle(180);
       }
     },
+    settle,
     reset() {
       reshuffleSpecies();
       quietUntil = performance.now() + RESEED_QUIET_MS;
