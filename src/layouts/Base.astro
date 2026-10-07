@@ -17,7 +17,7 @@ interface Props {
   home?: boolean;
   noindex?: boolean; // keep this page out of search results
 }
-const { title, description = `${site.name}: ${site.role}. ${site.tagline}`, chapter, home = false, noindex = false } = Astro.props;
+const { title, description = site.tagline, chapter, home = false, noindex = false } = Astro.props;
 const pageTitle = title ? `${title} · ${site.name}` : `${site.name}: ${site.role}`;
 const path = Astro.url.pathname.replace(/\/$/, '') || '/';
 const canonical = new URL(Astro.url.pathname, site.url);
@@ -40,7 +40,7 @@ const ogImage = new URL('/og-card-2.jpg', site.url);
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <meta property="og:site_name" content={site.name} />
+    <meta property="og:site_name" content="pavlovsdogma.com" />
     <meta property="og:image" content={ogImage} />
     <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="2400" />
