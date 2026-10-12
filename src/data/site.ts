@@ -55,8 +55,8 @@ export const nav = [
   { href: '/about', label: 'About' },
   { href: '/work', label: 'Work' },
   { href: '/projects', label: 'Projects' },
+  // Writing (/writing, chapter 05) is published but left out of the tabs for now; Projects links to its posts.
   { href: '/lab', label: 'Lab' },
-  { href: '/writing', label: 'Writing' },
 ];
 
 export type Project = {
