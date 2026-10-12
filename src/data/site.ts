@@ -54,7 +54,8 @@ export const languages = ['English (native)', 'Russian (native)'];
 export const nav = [
   { href: '/about', label: 'About' },
   { href: '/work', label: 'Work' },
-  // Writing (/writing, chapter 04) is hidden from the tabs for now but still reachable by URL.
+  { href: '/projects', label: 'Projects' },
+  // Writing (/writing, chapter 05) is hidden from the tabs for now but still reachable by URL.
   { href: '/lab', label: 'Lab' },
 ];
 
@@ -127,17 +128,6 @@ export const projects: Project[] = [
       'The GPU slime mold simulation running behind this site. Hundreds of thousands of agents follow and lay down pheromone trails, and they react to your cursor.',
     stack: ['WebGL2', 'GLSL', 'TypeScript', 'Astro'],
     href: '/lab',
-  },
-];
-
-export type Post = { title: string; date: string; summary: string; href: string };
-
-export const posts: Post[] = [
-  {
-    title: 'Notes on simulating slime mold in a fragment shader',
-    date: '2026-10-01',
-    summary: 'Agents in textures, trails in ping-pong buffers, and why everything wraps around.',
-    href: '#',
   },
 ];
 

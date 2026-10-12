@@ -1,0 +1,33 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+
+// Newest first. Drafts show only on the dev server.
+const posts = (await getCollection('writing', (p) => import.meta.env.DEV || !p.data.draft)).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
+);
+---
+
+<Base title="Writing" chapter="05 / Writing" description="Notes and articles." noindex>
+  <section class="panel">
+    {posts.length === 0 && <p class="muted flush">Nothing published yet.</p>}
+    <ul class="entries">
+      {
+        posts.map((p) => (
+          <li class="entry">
+            <time class="year" datetime={p.data.date.toISOString().slice(0, 10)}>
+              {p.data.date.getUTCFullYear()}
+            </time>
+            <div>
+              <h2>
+                <a href={`/writing/${p.id}`}>{p.data.title}</a>
+                {p.data.draft && <span class="muted mono"> (draft)</span>}
+              </h2>
+              <p class="muted">{p.data.summary}</p>
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</Base>

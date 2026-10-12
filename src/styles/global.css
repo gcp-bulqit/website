@@ -707,3 +707,164 @@ strong {
 p.flush {
   margin: 0;
 }
+/* Writing: a single post spans the full width of the page. */
+.wide main,
+.wide .site-footer {
+  max-width: none;
+}
+.post .post-meta {
+  margin-bottom: 0.5rem;
+}
+.post figure.stat {
+  margin: 1.5em 0;
+  padding: 1rem 1.25rem;
+  border-left: 3px solid var(--accent);
+  background: var(--panel);
+}
+.post figure.stat p {
+  margin: 0;
+}
+.post .post-back {
+  margin: 2em 0 0;
+}
+/* Keep post content inside the screen on phones: long words and links break, wide blocks scroll. */
+.wide .page-head {
+  max-width: 100%;
+}
+/* Post titles are long: scale them with the screen so ordinary words fit on one line. */
+.wide .page-head h1 {
+  font-size: clamp(2rem, 10vw, 4rem);
+}
+.wide .page-head h1,
+.post {
+  overflow-wrap: break-word;
+}
+.post a {
+  overflow-wrap: anywhere;
+}
+.post img,
+.post svg,
+.post video {
+  max-width: 100%;
+  height: auto;
+}
+.post pre,
+.post table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.post pre {
+  white-space: pre;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line);
+}
+/* Inline code in posts: match the text size and allow long tokens to break on phones. */
+.post code {
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+/* Diagrams: centred, at a readable width, on their own white card in either theme. */
+.post img {
+  display: block;
+  width: 100%;
+  max-width: 30rem;
+  margin: 1.5em auto;
+  border: 1px solid var(--line);
+}
+/* A post section with text on the left and a diagram on the right; stacks on narrow screens. */
+.post .split {
+  display: grid;
+  /* The diagram column never takes more than half the width. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, min(48rem, 50%));
+  gap: 2rem;
+  align-items: start;
+  margin: 1.5em 0;
+}
+.post .split > div > :last-child {
+  margin-bottom: 0;
+}
+@media (max-width: 52rem) {
+  .post .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .post .split .diagram {
+    margin-inline: auto;
+  }
+}
+/* Diagrams drawn inline take the theme's colours, so they read in every palette. */
+.post .diagram {
+  margin: 0;
+  border: 1px solid var(--line);
+  padding: 1rem;
+  /* Never taller than the screen: cap the width at the screen height (less the header and some
+     room) times the diagram's aspect ratio, set per figure as --ar (viewBox width / height). */
+  box-sizing: border-box;
+  justify-self: center;
+  width: min(100%, calc((100dvh - 9rem) * var(--ar, 1) + 2rem + 2px));
+}
+.post .diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.flow .nodes rect,
+.flow .nodes polygon {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.25;
+}
+.flow .nodes .out,
+.flow .nodes .side {
+  stroke: var(--accent);
+}
+.flow .edges path {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.25;
+  marker-end: url(#flow-arrow);
+}
+.flow.kill .edges path {
+  marker-end: url(#kill-arrow);
+}
+.flow.slots .edges path {
+  marker-end: url(#slots-arrow);
+}
+.flow.tri1 .edges path {
+  marker-end: url(#tri1-arrow);
+}
+.flow.tri2 .edges path {
+  marker-end: url(#tri2-arrow);
+}
+.flow.tri3 .edges path {
+  marker-end: url(#tri3-arrow);
+}
+/* Joins and spines carry no arrowhead (listed after the per-diagram markers so they win). */
+.flow .edges path.spine,
+.flow .edges path.plain {
+  marker-end: none;
+}
+/* Edge labels placed beside a line keep their start alignment. */
+.flow text[text-anchor='start'] {
+  text-anchor: start;
+}
+.flow .labels .head {
+  fill: var(--accent);
+}
+.flow .edges .dotted {
+  stroke-dasharray: 3 3;
+}
+.flow marker path {
+  fill: var(--muted);
+}
+.flow text {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  fill: var(--text);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+.flow .edge-labels text {
+  font-size: 13px;
+  fill: var(--muted);
+}

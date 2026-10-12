@@ -1,0 +1,25 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getCollection, render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('writing', (p) => import.meta.env.DEV || !p.data.draft);
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const date = post.data.date;
+---
+
+<Base title={post.data.title} chapter="05 / Writing" description={post.data.summary} noindex wide>
+  <article class="panel post">
+    <p class="muted mono post-meta">
+      <time datetime={date.toISOString().slice(0, 10)}>
+        {date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
+      </time>
+    </p>
+    <Content />
+    <p class="post-back"><a href="/writing">← All writing</a></p>
+  </article>
+</Base>
