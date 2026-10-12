@@ -3,7 +3,6 @@ title: Letting an LLM pick the work, and checking it did
 date: 2026-10-12
 summary: A triage step that asks a model narrow, typed questions about each ticket, keeps every decision in code, and was scored against what the pipeline actually shipped.
 project: AI Ticket Triage and Routing System
-draft: true
 ---
 
 My [agent pipeline](/writing/autonomous-ai-agent-pipeline) will happily spend an hour on a ticket that no pull request can close. Some tickets in a real backlog are already fixed. Some are a dashboard setting, a question, or a production data problem dressed up as a bug. Others need a product decision before anyone should touch the code.

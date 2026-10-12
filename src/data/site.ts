@@ -55,8 +55,8 @@ export const nav = [
   { href: '/about', label: 'About' },
   { href: '/work', label: 'Work' },
   { href: '/projects', label: 'Projects' },
-  // Writing (/writing, chapter 05) is hidden from the tabs for now but still reachable by URL.
   { href: '/lab', label: 'Lab' },
+  { href: '/writing', label: 'Writing' },
 ];
 
 export type Project = {

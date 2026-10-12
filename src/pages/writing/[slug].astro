@@ -12,7 +12,7 @@ const { Content } = await render(post);
 const date = post.data.date;
 ---
 
-<Base title={post.data.title} chapter="05 / Writing" description={post.data.summary} noindex wide>
+<Base title={post.data.title} chapter="05 / Writing" description={post.data.summary} wide>
   <article class="panel post">
     <p class="muted mono post-meta">
       <time datetime={date.toISOString().slice(0, 10)}>
