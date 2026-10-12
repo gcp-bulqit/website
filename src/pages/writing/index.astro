@@ -8,7 +8,7 @@ const posts = (await getCollection('writing', (p) => !p.data.hidden && (import.m
 );
 ---
 
-<Base title="Writing" chapter="05 / Writing" description="Notes and articles." noindex>
+<Base title="Writing" chapter="05 / Writing" description="Notes and articles.">
   <section class="panel">
     {posts.length === 0 && <p class="muted flush">Nothing published yet.</p>}
     <ul class="entries">

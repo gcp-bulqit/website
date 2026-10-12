@@ -3,7 +3,6 @@ title: Building an autonomous AI agent pipeline on Claude Code
 date: 2026-10-07
 summary: A supervisor and five specialist agents that take Linear tickets to reviewed pull requests. The hard parts were surviving interruption and knowing when to stop.
 project: Autonomous AI Agent Pipeline
-draft: true
 ---
 
 For about a month, a set of Claude Code agents took tickets off a Linear board, worked them through discovery, planning, implementation and review, and opened draft pull requests against a production Next.js/TypeScript monorepo. Over 35 days it opened 131 pull requests, and a human merged 128 of them.
