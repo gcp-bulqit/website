@@ -1,0 +1,55 @@
+---
+import Base from '../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+import { projects } from '../data/site';
+
+// A project's title links to the Writing post that names it. Drafts count only on the dev server,
+// so production never links to a post that isn't published.
+const posts = await getCollection('writing', (p) => !p.data.hidden && (import.meta.env.DEV || !p.data.draft));
+const postFor = (title: string) => posts.find((p) => p.data.project === title);
+---
+
+<Base title="Projects" chapter="03 / Projects" description="Selected projects.">
+  <section class="panel" aria-label="Projects">
+    <ul class="entries">
+      {
+        projects.map((p) => (
+          <li class="entry">
+            <span class="year">{p.year}</span>
+            <div>
+              <h3>
+                {postFor(p.title) ? (
+                  <a href={`/writing/${postFor(p.title)!.id}`}>{p.title}</a>
+                ) : p.href ? (
+                  <a href={p.href}>{p.title}</a>
+                ) : (
+                  p.title
+                )}
+              </h3>
+              <p>{p.summary}</p>
+              {p.details && (
+                <ul class="highlights project-details">
+                  {p.details.map((d) => (
+                    <li>{d}</li>
+                  ))}
+                </ul>
+              )}
+              <ul class="tags">
+                {p.stack.map((s) => (
+                  <li>{s}</li>
+                ))}
+              </ul>
+              {(p.href || p.repo) && (
+                <p class="links">
+                  {p.href && <a href={p.href}>Visit</a>}
+                  {p.repo && <a href={p.repo}>{p.repo.replace(/^https?:\/\//, '')}</a>}
+                </p>
+              )}
+              {p.note && <p class="muted mono note">{p.note}</p>}
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</Base>

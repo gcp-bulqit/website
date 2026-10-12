@@ -16,8 +16,9 @@ interface Props {
   chapter?: string;
   home?: boolean;
   noindex?: boolean; // keep this page out of search results
+  wide?: boolean; // let the content use the full page width (Writing posts)
 }
-const { title, description = site.tagline, chapter, home = false, noindex = false } = Astro.props;
+const { title, description = site.tagline, chapter, home = false, noindex = false, wide = false } = Astro.props;
 const pageTitle = title ? `${title} · ${site.name}` : `${site.name}: ${site.role}`;
 const path = Astro.url.pathname.replace(/\/$/, '') || '/';
 const canonical = new URL(Astro.url.pathname, site.url);
@@ -82,7 +83,7 @@ const ogImage = new URL('/og-card-3.jpg', site.url);
     <!-- Client-side navigation keeps the simulation layer (transition:persist) alive between pages. -->
     <ClientRouter />
   </head>
-  <body class:list={{ home }}>
+  <body class:list={{ home, wide }}>
     <a class="skip-link" href="#content">Skip to content</a>
     <SlimeField />
 

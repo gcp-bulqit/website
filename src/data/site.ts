@@ -54,7 +54,8 @@ export const languages = ['English (native)', 'Russian (native)'];
 export const nav = [
   { href: '/about', label: 'About' },
   { href: '/work', label: 'Work' },
-  // Writing (/writing, chapter 04) is hidden from the tabs for now but still reachable by URL.
+  { href: '/projects', label: 'Projects' },
+  // Writing (/writing, chapter 05) is hidden from the tabs for now but still reachable by URL.
   { href: '/lab', label: 'Lab' },
 ];
 
@@ -82,6 +83,7 @@ export const projects: Project[] = [
       'Running five tickets at a time, it processes a mean of 100 tickets per 24 hours, and its pull requests pass review in a weighted mean of 1.3 attempts: 79% on the first, 12% on the second, and 9% on the third.',
     ],
     stack: ['Claude Code', 'AI agents', 'git worktrees', 'Linear'],
+    repo: 'https://github.com/gcp-bulqit/linear-pipeline',
   },
   {
     title: 'AI Ticket Triage and Routing System',
@@ -93,6 +95,7 @@ export const projects: Project[] = [
       'A hindsight-free backtest against 130 shipped tickets found 25% carried the wrong type label.',
     ],
     stack: ['TypeSafe Jev', 'Python', 'LLMs'],
+    repo: 'https://github.com/gcp-bulqit/ticket-triage',
   },
   {
     title: 'Claude Code Operations Skills Library',
@@ -103,7 +106,7 @@ export const projects: Project[] = [
       'Checkpoint-based content syncs between dev and production databases and CMS that never overwrite production edits; reconciled 146 notification templates and avoided 23 broken images a naive copy would have caused.',
     ],
     stack: ['Claude Code skills', 'PostgreSQL', 'Sanity CMS', 'Twilio'],
-    note: 'Bulqit/tool-shed (private repository)',
+    repo: 'https://github.com/gcp-bulqit/claude-ops-skills',
   },
   {
     title: 'Blue/Green Release System',
@@ -118,7 +121,7 @@ export const projects: Project[] = [
     summary:
       'The engineering onboarding repository: an infrastructure overview with an architecture diagram, 65 files of initial developer documentation, an accounts checklist, and a 686-line staging QA checklist with a pass/fail matrix.',
     stack: ['Documentation', 'QA'],
-    note: 'Bulqit/bul-dev-docs (private repository)',
+    repo: 'https://github.com/gcp-bulqit/dev-onboarding-docs',
   },
   {
     title: 'Physarum Background',
@@ -127,17 +130,7 @@ export const projects: Project[] = [
       'The GPU slime mold simulation running behind this site. Hundreds of thousands of agents follow and lay down pheromone trails, and they react to your cursor.',
     stack: ['WebGL2', 'GLSL', 'TypeScript', 'Astro'],
     href: '/lab',
-  },
-];
-
-export type Post = { title: string; date: string; summary: string; href: string };
-
-export const posts: Post[] = [
-  {
-    title: 'Notes on simulating slime mold in a fragment shader',
-    date: '2026-10-01',
-    summary: 'Agents in textures, trails in ping-pong buffers, and why everything wraps around.',
-    href: '#',
+    repo: 'https://github.com/gcp-bulqit/website',
   },
 ];
 
