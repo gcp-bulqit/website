@@ -130,6 +130,7 @@ export const projects: Project[] = [
       'The GPU slime mold simulation running behind this site. Hundreds of thousands of agents follow and lay down pheromone trails, and they react to your cursor.',
     stack: ['WebGL2', 'GLSL', 'TypeScript', 'Astro'],
     href: '/lab',
+    repo: 'https://github.com/gcp-bulqit/website',
   },
 ];
 

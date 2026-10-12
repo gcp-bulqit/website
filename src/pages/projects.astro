@@ -42,7 +42,7 @@ const postFor = (title: string) => posts.find((p) => p.data.project === title);
               {(p.href || p.repo) && (
                 <p class="links">
                   {p.href && <a href={p.href}>Visit</a>}
-                  {p.repo && <a href={p.repo}>Source</a>}
+                  {p.repo && <a href={p.repo}>{p.repo.replace(/^https?:\/\//, '')}</a>}
                 </p>
               )}
               {p.note && <p class="muted mono note">{p.note}</p>}

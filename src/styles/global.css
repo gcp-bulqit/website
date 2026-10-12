@@ -414,9 +414,15 @@ main {
 }
 .links {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
   font-size: 1rem;
   margin-top: 0.5rem;
+}
+/* Full repository addresses can be longer than a phone is wide. */
+.links a {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 640px) {
