@@ -5,7 +5,7 @@ import { projects } from '../data/site';
 
 // A project's title links to the Writing post that names it. Drafts count only on the dev server,
 // so production never links to a post that isn't published.
-const posts = await getCollection('writing', (p) => import.meta.env.DEV || !p.data.draft);
+const posts = await getCollection('writing', (p) => !p.data.hidden && (import.meta.env.DEV || !p.data.draft));
 const postFor = (title: string) => posts.find((p) => p.data.project === title);
 ---
 

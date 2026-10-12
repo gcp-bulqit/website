@@ -2,8 +2,8 @@
 title: Making risky operations boring with Claude Code skills
 date: 2026-10-07
 summary: Approval-gated skills for promotions, merge trains, number provisioning and content syncs that never overwrite production.
-project: Claude Code Operations Skills Library
 draft: true
+hidden: true
 ---
 
 ## Outline

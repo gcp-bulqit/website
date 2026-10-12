@@ -2,8 +2,8 @@
 title: Notes on simulating slime mold in a fragment shader
 date: 2026-10-07
 summary: Agents in textures, trails in ping-pong buffers, and why everything wraps around.
-project: Physarum Background
 draft: true
+hidden: true
 ---
 
 ## Outline

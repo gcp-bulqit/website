@@ -2,8 +2,8 @@
 title: Writing the onboarding docs I wish I'd had
 date: 2026-10-07
 summary: An infrastructure overview, 65 files of developer documentation, and a 686-line staging QA checklist.
-project: Developer Onboarding Documentation
 draft: true
+hidden: true
 ---
 
 ## Outline

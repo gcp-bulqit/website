@@ -13,6 +13,8 @@ const writing = defineCollection({
     project: z.string().optional(),
     // Drafts build locally but are left out of the list and the production build.
     draft: z.boolean().default(false),
+    // Hidden posts are left out everywhere, even on the dev server, and never linked from Projects.
+    hidden: z.boolean().default(false),
   }),
 });
 

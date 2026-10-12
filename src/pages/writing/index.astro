@@ -3,7 +3,7 @@ import Base from '../../layouts/Base.astro';
 import { getCollection } from 'astro:content';
 
 // Newest first. Drafts show only on the dev server.
-const posts = (await getCollection('writing', (p) => import.meta.env.DEV || !p.data.draft)).sort(
+const posts = (await getCollection('writing', (p) => !p.data.hidden && (import.meta.env.DEV || !p.data.draft))).sort(
   (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
 );
 ---
